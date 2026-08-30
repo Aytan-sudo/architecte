@@ -26,6 +26,8 @@
 
     --ligne: #e2483d;
     --ligne-fantome: #e2483d33;
+    --ligne-deux: #2f6f8f;
+    --ligne-deux-fantome: #2f6f8f33;
     --pastille: #fffdf8;
     --accent: #f2b33d;
     --danger: #b03a2e;
@@ -52,6 +54,8 @@
 
     --ligne: #0e8c6a;
     --ligne-fantome: #0e8c6a33;
+    --ligne-deux: #8a5bbd;
+    --ligne-deux-fantome: #8a5bbd33;
     --pastille: #fbfdfb;
     --accent: #e08b2c;
     --danger: #a63b33;
@@ -78,6 +82,8 @@
 
     --ligne: #6a4cc7;
     --ligne-fantome: #6a4cc733;
+    --ligne-deux: #0f8a7a;
+    --ligne-deux-fantome: #0f8a7a33;
     --pastille: #ffffff;
     --accent: #e0a32e;
     --danger: #b0453a;
@@ -104,6 +110,8 @@
 
     --ligne: #f2a93b;
     --ligne-fantome: #f2a93b3d;
+    --ligne-deux: #6fa8ff;
+    --ligne-deux-fantome: #6fa8ff40;
     --pastille: #1f242d;
     --accent: #7fd1c1;
     --danger: #e2685c;
@@ -130,6 +138,8 @@
 
     --ligne: #f0708f;
     --ligne-fantome: #f0708f3d;
+    --ligne-deux: #79d6c0;
+    --ligne-deux-fantome: #79d6c040;
     --pastille: #2c222f;
     --accent: #f5c86b;
     --danger: #e2685c;

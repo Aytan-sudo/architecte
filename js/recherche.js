@@ -49,13 +49,13 @@ function ouvrir() {
 
 // Le repli : la meme recherche, sur le fil principal. Elle bloque le temps
 // qu'elle dure, ce qui vaut mieux qu'un troisieme chiffre absent.
-async function surPlace({ lignes, colonnes, murs, graine, reglages }) {
+async function surPlace({ lignes, colonnes, murs, graine, stations, doubleLigne, reglages }) {
     const [{ genererPlateau }, solveur] = await Promise.all([
         import('./generateur.js'),
         import('./solveur.js')
     ]);
     const choix = reglages === 'profonds' ? solveur.REGLAGES_PROFONDS : solveur.REGLAGES_RAPIDES;
-    const { plateau, budget } = genererPlateau({ lignes, colonnes, murs, graine });
+    const { plateau, budget } = genererPlateau({ lignes, colonnes, murs, graine, stations, doubleLigne });
     const trouve = solveur.chercherMeilleur(plateau, budget, { ...choix, graine });
     return { longueur: trouve.longueur, murs: trouve.murs };
 }

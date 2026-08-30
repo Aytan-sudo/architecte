@@ -60,7 +60,8 @@ const PREFERENCES = {
     vibration: true,
     tracesFantomes: true,
     taille: 12,
-    murs: 12
+    murs: 12,
+    variantes: []
 };
 
 export const lirePreferences = () => lire('preferences', PREFERENCES);
@@ -78,8 +79,10 @@ export const oublierPartie = () => ecrire('partie', { partie: null });
 // grand oeuvre n'a rien a voir avec un detour de 26 en esquisse, et les
 // melanger ne dirait rien.
 
-export const cleConfiguration = ({ mode, lignes, colonnes, murs }) =>
-    `${mode}:${lignes}x${colonnes}:${murs}`;
+// Le canonique ne porte aucune trace de variante : les palmares deja inscrits
+// restent les leurs, et une variante ne concourt jamais contre le jeu nu.
+export const cleConfiguration = ({ mode, lignes, colonnes, murs, variantes = [] }) =>
+    `${mode}:${lignes}x${colonnes}:${murs}${variantes.length ? `:${[...variantes].sort().join('+')}` : ''}`;
 
 export const lireRecords = () => lire('records', { records: {} });
 

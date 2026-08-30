@@ -2,8 +2,8 @@
 // de plateaux. Une promesse non testee est une intention.
 
 import { counter } from './harness.mjs';
-import { LIBRE, signature, distanceMinimale, posable } from '../js/plateau.js';
-import { longueur, aucunPassageOblige, casesInterdites } from '../js/chemin.js';
+import { LIBRE, signature, distanceMinimale, posable, bouts, etapes } from '../js/plateau.js';
+import { longueur, aucunPassageOblige, casesInterdites, analyser } from '../js/chemin.js';
 import { genererPlateau, budgetDepensable } from '../js/generateur.js';
 import { creerHasard } from '../js/hasard.js';
 
@@ -55,7 +55,8 @@ let bordsCorrects = 0;
 let horsCoins = 0;
 for (let graine = 1; graine <= 30; graine++) {
     const { plateau } = genererPlateau({ lignes: 12, colonnes: 12, murs: 12, graine: graine * 104729 });
-    const { entree, sortie, lignes, colonnes } = plateau;
+    const { lignes, colonnes } = plateau;
+    const { entree, sortie } = plateau.liaisons[0];
     const le = Math.floor(entree / colonnes);
     const ce = entree % colonnes;
     const ls = Math.floor(sortie / colonnes);
@@ -77,8 +78,67 @@ for (let graine = 1; graine <= 30; graine++) {
     const autour = i => [i - 12, i + 12, i - 1, i + 1]
         .filter(v => v >= 0 && v < plateau.cases.length)
         .filter(v => posable(plateau, v) && !interdites[v]);
-    if (autour(plateau.entree).length >= 2 && autour(plateau.sortie).length >= 2) abordsLibres++;
+    if (bouts(plateau).every(bout => autour(bout).length >= 2)) abordsLibres++;
 }
 check('les abords de l entree et de la sortie sont batissables', abordsLibres === 30, String(abordsLibres));
+
+// Les variantes ne sont pas un autre jeu : elles doivent tenir exactement les
+// memes promesses, sur le meme moteur. C'est tout l'interet de n'avoir qu'un
+// modele — des liaisons a assurer — plutot qu'une branche par variante.
+const VARIANTES = [
+    { nom: 'stations', options: { lignes: 12, colonnes: 12, murs: 12, stations: 3 } },
+    { nom: 'double ligne', options: { lignes: 16, colonnes: 16, murs: 24, doubleLigne: true } },
+    { nom: 'les deux', options: { lignes: 16, colonnes: 16, murs: 24, stations: 2, doubleLigne: true } }
+];
+
+for (const variante of VARIANTES) {
+    let bons = 0;
+    let formes = 0;
+    const combien = 12;
+    for (let graine = 1; graine <= combien; graine++) {
+        const { plateau, budget } = genererPlateau({ ...variante.options, graine: graine * 2654435761 });
+        const promesses = longueur(plateau) >= 0
+            && aucunPassageOblige(plateau)
+            && budgetDepensable(plateau, budget, creerHasard(graine))
+            && longueur(plateau) <= distanceMinimale(plateau) + 2;
+        if (promesses) bons++;
+
+        // La forme demandee est bien celle qu'on obtient, et deux liaisons ne
+        // partagent jamais une case reperee.
+        const attenduLiaisons = variante.options.doubleLigne ? 2 : 1;
+        const attenduStations = variante.options.stations ?? 0;
+        const reperes = bouts(plateau);
+        if (plateau.liaisons.length === attenduLiaisons
+            && plateau.liaisons[0].stations.length === attenduStations
+            && new Set(reperes).size === reperes.length) formes++;
+    }
+    check(`variante ${variante.nom} : les quatre promesses tiennent`, bons === combien, `${bons}/${combien}`);
+    check(`variante ${variante.nom} : la forme demandee est respectee`, formes === combien, `${formes}/${combien}`);
+}
+
+// Les stations sont des etapes, pas des decors : le trace doit vraiment passer
+// par elles, et les desservir allonge le chemin.
+const { plateau: avecStations } = genererPlateau({ lignes: 12, colonnes: 12, murs: 12, stations: 3, graine: 987 });
+const { plateau: sansStations } = genererPlateau({ lignes: 12, colonnes: 12, murs: 12, graine: 987 });
+const traceStations = analyser(avecStations).liaisons[0];
+check('le trace dessert toutes les stations',
+    avecStations.liaisons[0].stations.every(station => traceStations.chemin.includes(station)),
+    avecStations.liaisons[0].stations.join(','));
+check('desservir des stations allonge le chemin',
+    longueur(avecStations) > longueur(sansStations),
+    `${longueur(avecStations)} contre ${longueur(sansStations)}`);
+check('on ne peut pas batir sur une station',
+    avecStations.liaisons[0].stations.every(station => !posable(avecStations, station)));
+
+// La double ligne : deux liaisons independantes, et un mur qui couperait l'une
+// des deux est refuse comme s'il coupait l'autre.
+const { plateau: deux } = genererPlateau({ lignes: 16, colonnes: 16, murs: 24, doubleLigne: true, graine: 555 });
+const analyseDeux = analyser(deux);
+check('la double ligne rend deux traces', analyseDeux.liaisons.length === 2);
+check('le score de la double ligne est la somme des deux',
+    analyseDeux.longueur === analyseDeux.liaisons[0].longueur + analyseDeux.liaisons[1].longueur);
+check('les deux lignes se croisent',
+    analyseDeux.liaisons[0].chemin.some(i => analyseDeux.liaisons[1].chemin.includes(i)),
+    'sinon elles ne se disputeraient jamais un mur');
 
 report();

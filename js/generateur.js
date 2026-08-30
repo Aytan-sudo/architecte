@@ -17,7 +17,7 @@
 // humain, ni qu'il soit l'optimum. Voir solveur.js.
 
 import { creerHasard } from './hasard.js';
-import { LIBRE, OBSTACLE, MUR, creerPlateau, indice, distanceMinimale, posable, voisins } from './plateau.js';
+import { LIBRE, OBSTACLE, MUR, creerPlateau, creerLiaison, indice, distanceMinimale, posable, voisins, bouts, ligneDe, colonneDe } from './plateau.js';
 import { creerTampons, longueur, aucunPassageOblige, casesInterdites } from './chemin.js';
 
 // Des blocs plutot que des cases isolees : un semis de points donne une
@@ -36,7 +36,7 @@ const FORMES = [
 
 const DENSITE = 0.12;
 
-export function genererPlateau({ lignes, colonnes, murs, graine, tentatives = 400 }) {
+export function genererPlateau({ lignes, colonnes, murs, graine, stations = 0, doubleLigne = false, tentatives = 400 }) {
     const hasard = creerHasard(graine);
     let densite = DENSITE;
 
@@ -46,41 +46,90 @@ export function genererPlateau({ lignes, colonnes, murs, graine, tentatives = 40
         // que de tourner en rond.
         if (essai > 0 && essai % 20 === 0) densite *= 0.85;
 
-        const plateau = tenter({ lignes, colonnes, murs, hasard, densite });
+        const plateau = tenter({ lignes, colonnes, murs, hasard, densite, stations, doubleLigne });
         if (plateau) return { plateau, budget: murs, graine, essais: essai + 1 };
     }
 
     // Filet : une grille nue tient les quatre promesses par construction.
-    return { plateau: grilleNue({ lignes, colonnes, hasard }), budget: murs, graine, essais: tentatives };
+    return {
+        plateau: grilleNue({ lignes, colonnes, hasard, stations: 0, doubleLigne }),
+        budget: murs, graine, essais: tentatives
+    };
 }
 
-function bordsOpposes({ lignes, colonnes, hasard }) {
-    // On evite les coins : une entree dans un coin se muselle avec deux murs,
-    // et le plateau perd tout interet des le deuxieme coup.
-    if (hasard.suivant() < 0.5) {
+// On evite les coins : une entree dans un coin se muselle avec deux murs, et le
+// plateau perd tout interet des le deuxieme coup.
+function bordsOpposes({ lignes, colonnes, hasard, horizontal }) {
+    if (horizontal) {
         const a = hasard.entre(1, lignes - 2);
         const b = hasard.entre(1, lignes - 2);
-        return { entree: a * colonnes, sortie: b * colonnes + colonnes - 1 };
+        return creerLiaison(a * colonnes, b * colonnes + colonnes - 1);
     }
     const a = hasard.entre(1, colonnes - 2);
     const b = hasard.entre(1, colonnes - 2);
-    return { entree: a, sortie: (lignes - 1) * colonnes + b };
+    return creerLiaison(a, (lignes - 1) * colonnes + b);
 }
 
-function grilleNue({ lignes, colonnes, hasard }) {
-    const { entree, sortie } = bordsOpposes({ lignes, colonnes, hasard });
-    return creerPlateau({ lignes, colonnes, entree, sortie });
+// Les stations : des cases a desservir, posees loin des bords et loin les unes
+// des autres, puis rangees dans l'ordre ou la liaison les rencontrera. Une
+// station collee a l'entree ne demanderait aucun detour.
+function poserStations({ lignes, colonnes, hasard, liaison, combien }) {
+    const marge = 2;
+    const choisies = [];
+    const assezLoin = i => choisies.concat([liaison.entree, liaison.sortie]).every(autre => {
+        const distance = Math.abs(Math.floor(i / colonnes) - Math.floor(autre / colonnes))
+            + Math.abs((i % colonnes) - (autre % colonnes));
+        return distance >= Math.max(3, Math.round((lignes + colonnes) / 6));
+    });
+
+    for (let essai = 0; essai < 400 && choisies.length < combien; essai++) {
+        const l = hasard.entre(marge, lignes - 1 - marge);
+        const c = hasard.entre(marge, colonnes - 1 - marge);
+        const i = l * colonnes + c;
+        if (!choisies.includes(i) && assezLoin(i)) choisies.push(i);
+    }
+    if (choisies.length < combien) return null;
+
+    // L'ordre de desserte : celui de l'avancee de l'entree vers la sortie, pour
+    // que la ligne ne fasse pas d'aller-retour absurde des le depart.
+    const axe = i => Math.abs(Math.floor(i / colonnes) - Math.floor(liaison.entree / colonnes))
+        + Math.abs((i % colonnes) - (liaison.entree % colonnes));
+    return choisies.sort((a, b) => axe(a) - axe(b));
 }
 
-function tenter({ lignes, colonnes, murs, hasard, densite }) {
-    const plateau = grilleNue({ lignes, colonnes, hasard });
+function grilleNue({ lignes, colonnes, hasard, stations = 0, doubleLigne = false }) {
+    const horizontal = doubleLigne ? true : hasard.suivant() < 0.5;
+    const liaisons = [bordsOpposes({ lignes, colonnes, hasard, horizontal })];
+
+    // La seconde liaison prend l'autre axe : les deux se croisent forcement,
+    // ce qui est tout l'interet — deux lignes paralleles ne se disputeraient
+    // jamais un mur.
+    if (doubleLigne) liaisons.push(bordsOpposes({ lignes, colonnes, hasard, horizontal: false }));
+
+    if (stations > 0) {
+        const posees = poserStations({ lignes, colonnes, hasard, liaison: liaisons[0], combien: stations });
+        if (!posees) return null;
+        liaisons[0].stations = posees;
+    }
+
+    // Deux liaisons ne partagent ni bout ni station : deux marqueurs sur la
+    // meme case ne se distingueraient pas a l'ecran.
+    const occupees = liaisons.flatMap(liaison => [liaison.entree, liaison.sortie, ...liaison.stations]);
+    if (new Set(occupees).size !== occupees.length) return null;
+
+    return creerPlateau({ lignes, colonnes, liaisons });
+}
+
+function tenter({ lignes, colonnes, murs, hasard, densite, stations, doubleLigne }) {
+    const plateau = grilleNue({ lignes, colonnes, hasard, stations, doubleLigne });
+    if (!plateau) return null;
     const total = lignes * colonnes;
     const vise = Math.round(total * densite);
 
-    // Les abords immediats de l'entree et de la sortie restent libres : le
-    // joueur doit pouvoir y poser ses propres murs.
+    // Les abords immediats des bouts et des stations restent libres : le joueur
+    // doit pouvoir y poser ses propres murs.
     const interdit = new Uint8Array(total);
-    for (const bout of [plateau.entree, plateau.sortie]) {
+    for (const bout of bouts(plateau)) {
         interdit[bout] = 1;
         for (const v of voisins(plateau, bout)) interdit[v] = 1;
     }

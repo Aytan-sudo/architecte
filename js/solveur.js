@@ -26,7 +26,7 @@
 
 import { creerHasard } from './hasard.js';
 import { LIBRE, MUR, avecCases, posable } from './plateau.js';
-import { creerTampons, remplirDistances, longueur } from './chemin.js';
+import { creerTampons, casesUtiles, longueur } from './chemin.js';
 
 export const REGLAGES_RAPIDES = { faisceau: 10, recuit: 6000, reprises: 1 };
 export const REGLAGES_PROFONDS = { faisceau: 32, recuit: 70000, reprises: 4 };
@@ -59,19 +59,17 @@ function poserMurs(plateau, murs) {
 }
 
 // Les cases qui valent la peine d'etre essayees : celles d'un plus court
-// chemin, plus leurs voisines immediates.
-function candidats(position, tampons) {
+// chemin — toutes liaisons et tous segments confondus — plus leurs voisines
+// immediates, celles qui ne paient que plus tard.
+function candidats(position, tampons, tamponsBis) {
     const n = position.cases.length;
-    const depuisEntree = Int32Array.from(remplirDistances(position, position.entree, tampons));
-    const total = depuisEntree[position.sortie];
+    const { total, utiles } = casesUtiles(position, tampons, tamponsBis);
     if (total < 0) return { total, liste: [] };
-    const depuisSortie = remplirDistances(position, position.sortie, tampons);
 
     const retenu = new Uint8Array(n);
     const { colonnes, lignes } = position;
     for (let i = 0; i < n; i++) {
-        if (depuisEntree[i] < 0 || depuisSortie[i] < 0) continue;
-        if (depuisEntree[i] + depuisSortie[i] !== total) continue;
+        if (!utiles[i]) continue;
         retenu[i] = 1;
         const l = Math.floor(i / colonnes);
         const c = i % colonnes;
@@ -90,6 +88,7 @@ function candidats(position, tampons) {
 
 function rechercheEnFaisceau(plateau, budget, largeur, hasard) {
     const tampons = creerTampons(plateau.cases.length);
+    const tamponsBis = creerTampons(plateau.cases.length);
     let faisceau = [{ murs: [], longueur: longueur(plateau, tampons) }];
     let meilleur = faisceau[0];
 
@@ -98,7 +97,7 @@ function rechercheEnFaisceau(plateau, budget, largeur, hasard) {
 
         for (const etat of faisceau) {
             const position = poserMurs(plateau, etat.murs);
-            const { liste } = candidats(position, tampons);
+            const { liste } = candidats(position, tampons, tamponsBis);
 
             for (const i of liste) {
                 position.cases[i] = MUR;
@@ -139,8 +138,8 @@ function rechercheEnFaisceau(plateau, budget, largeur, hasard) {
 // Les cases ou un mur a une chance de servir : sur le chemin actuel ou juste a
 // cote. Le recuit y puise les trois quarts de ses propositions ; le reste va
 // n'importe ou, sans quoi il ne quitterait jamais la region ou il est ne.
-function zoneUtile(position, tampons) {
-    const { liste } = candidats(position, tampons);
+function zoneUtile(position, tampons, tamponsBis) {
+    const { liste } = candidats(position, tampons, tamponsBis);
     return liste;
 }
 
@@ -150,6 +149,7 @@ function recuitSimule(plateau, mursDepart, budget, hasard, iterations) {
     }
 
     const tampons = creerTampons(plateau.cases.length);
+    const tamponsBis = creerTampons(plateau.cases.length);
     const position = poserMurs(plateau, mursDepart);
     const murs = [...mursDepart];
     let courante = longueur(position, tampons);
@@ -161,7 +161,7 @@ function recuitSimule(plateau, mursDepart, budget, hasard, iterations) {
     for (let i = 0; i < plateau.cases.length; i++) {
         if (posable(plateau, i)) libres.push(i);
     }
-    let utiles = zoneUtile(position, tampons);
+    let utiles = zoneUtile(position, tampons, tamponsBis);
 
     const T0 = 1.1;
     const T1 = 0.05;
@@ -185,7 +185,7 @@ function recuitSimule(plateau, mursDepart, budget, hasard, iterations) {
         if (accepte) {
             murs[rang] = cible;
             courante = proposee;
-            utiles = zoneUtile(position, tampons);
+            utiles = zoneUtile(position, tampons, tamponsBis);
             if (courante > meilleurLongueur) {
                 meilleurLongueur = courante;
                 meilleurMurs = [...murs];

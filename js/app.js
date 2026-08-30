@@ -19,9 +19,9 @@ import { chercher, chercherMeilleurConnu, lireCatalogue } from './recherche.js';
 import * as son from './son.js';
 import * as stockage from './stockage.js';
 import * as ui from './ui.js';
+import { budgetsPour, configurationDeGeneration, depuisTexte, libelleVariantes, retenues, versTexte } from './variantes.js';
 
 const TAILLES = [8, 10, 12, 16, 20];
-const budgetsPour = taille => [Math.round(taille / 2), taille, Math.round(taille * 1.5)];
 
 const rendu = creerRendu({ grille: ui.elements.grille(), svg: ui.elements.trace() });
 
@@ -34,6 +34,8 @@ const session = {
     date: dateLocale(),
     graine: 0,
     format: FORMATS.chantier,
+    generation: null,
+    variantes: [],
     partie: null,
     plateauNu: null,
     depart: 0,
@@ -85,6 +87,7 @@ function sauvegarder() {
             lignes: session.format.lignes,
             colonnes: session.format.colonnes,
             murs: session.format.murs,
+            variantes: session.variantes,
             actions: session.partie.serialiser()
         }
     });
@@ -94,7 +97,8 @@ const configurationCourante = () => ({
     mode: session.mode,
     lignes: session.format.lignes,
     colonnes: session.format.colonnes,
-    murs: session.format.murs
+    murs: session.format.murs,
+    variantes: session.variantes
 });
 
 // --- Le coup, et ce qu'il declenche ---------------------------------------
@@ -186,26 +190,35 @@ async function demarrer(demande, { reprise = null } = {}) {
     let budget;
 
     if (demande.mode === 'jour') {
+        // Le defi du jour reste canonique : le catalogue serait multiplie par le
+        // nombre de variantes, et les scores du jour cesseraient d'etre
+        // comparables — c'est tout ce qui fait leur valeur.
         const jour = plateauDuJour(session.date);
         plateau = jour.plateau;
         budget = jour.budget;
         session.format = jour.format;
+        session.variantes = [];
+        session.generation = configurationDeGeneration({
+            taille: jour.format.lignes, murs: jour.budget, variantes: []
+        });
         session.graine = graineDuJour(session.date);
     } else {
         session.graine = demande.graine ?? graineDepuisTexte(`libre:${Date.now()}`);
+        session.variantes = retenues(demande.variantes ?? [], demande.taille);
+        session.generation = configurationDeGeneration({
+            taille: demande.taille,
+            murs: demande.murs,
+            variantes: session.variantes
+        });
         session.format = {
             id: 'libre',
-            libelle: 'Partie libre',
-            lignes: demande.taille,
-            colonnes: demande.taille,
-            murs: demande.murs
-        };
-        const genere = genererPlateau({
+            libelle: session.variantes.length ? libelleVariantes(session.variantes) : 'Partie libre',
             lignes: demande.taille,
             colonnes: demande.taille,
             murs: demande.murs,
-            graine: session.graine
-        });
+            variantes: session.variantes
+        };
+        const genere = genererPlateau({ ...session.generation, graine: session.graine });
         plateau = genere.plateau;
         budget = genere.budget;
     }
@@ -242,7 +255,8 @@ async function demarrer(demande, { reprise = null } = {}) {
             && sauvegarde.mode === session.mode
             && sauvegarde.graine === session.graine
             && sauvegarde.lignes === session.format.lignes
-            && sauvegarde.murs === session.format.murs;
+            && sauvegarde.murs === session.format.murs
+            && (sauvegarde.variantes ?? []).join('+') === session.variantes.join('+');
         if (memeGrille) reprise = sauvegarde.actions;
     }
     if (reprise) session.partie.rejouer(reprise);
@@ -259,9 +273,7 @@ async function demarrer(demande, { reprise = null } = {}) {
 }
 
 const configurationDeRecherche = () => ({
-    lignes: session.format.lignes,
-    colonnes: session.format.colonnes,
-    murs: session.format.murs,
+    ...session.generation,
     graine: session.graine,
     reglages: session.reglages
 });
@@ -316,6 +328,7 @@ const partieLibre = (options = {}) => demarrer({
     mode: 'libre',
     taille: options.taille ?? preferences.taille,
     murs: options.murs ?? preferences.murs,
+    variantes: options.variantes ?? preferences.variantes,
     graine: options.graine
 });
 
@@ -324,7 +337,8 @@ const partieLibre = (options = {}) => demarrer({
 function lienDe() {
     const base = location.origin + location.pathname;
     if (session.mode === 'jour') return `${base}?jour=${session.date}`;
-    return `${base}?taille=${session.format.lignes}&murs=${session.format.murs}&seed=${session.graine}`;
+    const variantes = session.variantes.length ? `&v=${versTexte(session.variantes)}` : '';
+    return `${base}?taille=${session.format.lignes}&murs=${session.format.murs}${variantes}&seed=${session.graine}`;
 }
 
 async function partager() {
@@ -351,7 +365,7 @@ function ouvrirOptions() {
     ui.remplirOptions({
         preferences,
         tailles: TAILLES,
-        budgets: budgetsPour(preferences.taille),
+        budgets: budgetsPour(preferences.taille, preferences.variantes),
         surTheme: id => {
             preferences.theme = id;
             stockage.ecrirePreferences(preferences);
@@ -360,7 +374,19 @@ function ouvrirOptions() {
         },
         surTaille: taille => {
             preferences.taille = taille;
-            const budgets = budgetsPour(taille);
+            // Une variante que la nouvelle taille n'autorise plus se retire
+            // d'elle-meme, et le budget suit : deux lignes coutent plus cher.
+            preferences.variantes = retenues(preferences.variantes, taille);
+            const budgets = budgetsPour(taille, preferences.variantes);
+            if (!budgets.includes(preferences.murs)) preferences.murs = budgets[1];
+            stockage.ecrirePreferences(preferences);
+            ouvrirOptions();
+        },
+        surVariante: (id, actif) => {
+            const liste = new Set(preferences.variantes);
+            if (actif) liste.add(id); else liste.delete(id);
+            preferences.variantes = retenues([...liste], preferences.taille);
+            const budgets = budgetsPour(preferences.taille, preferences.variantes);
             if (!budgets.includes(preferences.murs)) preferences.murs = budgets[1];
             stockage.ecrirePreferences(preferences);
             ouvrirOptions();
@@ -473,6 +499,7 @@ async function ouverture() {
         await partieLibre({
             taille: Number(parametres.get('taille')) || preferences.taille,
             murs: Number(parametres.get('murs')) || preferences.murs,
+            variantes: depuisTexte(parametres.get('v')),
             graine: Number(graine)
         });
         return;
@@ -490,6 +517,7 @@ async function ouverture() {
             mode: 'libre',
             taille: sauvegarde.lignes,
             murs: sauvegarde.murs,
+            variantes: sauvegarde.variantes ?? [],
             graine: sauvegarde.graine
         }, { reprise: sauvegarde.actions });
         return;

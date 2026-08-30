@@ -141,6 +141,28 @@
 .trace .bout-creux { fill: var(--pastille); }
 .trace .anneau { fill: none; stroke: var(--ligne); stroke-width: .09; }
 
+/* Les stations : un losange, qui ne ressemble ni a un virage (une pastille
+ * ronde) ni a un terminus (un disque perce). Ce sont les seuls points que la
+ * ligne a l'obligation de desservir. */
+.trace .station {
+    fill: var(--pastille);
+    stroke: var(--ligne);
+    stroke-width: .1;
+}
+
+/* La seconde ligne du reseau. Elle ne peut pas prendre la couleur d'accent,
+ * deja retenue par la machine et ses exploits : il lui faut la sienne, dans
+ * chacune des cinq palettes. */
+.trace .liaison[data-rang="1"] .ruban,
+.trace .liaison[data-rang="1"] .pastille,
+.trace .liaison[data-rang="1"] .station,
+.trace .liaison[data-rang="1"] .anneau { stroke: var(--ligne-deux); }
+
+.trace .liaison[data-rang="1"] .bout { fill: var(--ligne-deux); }
+.trace .liaison[data-rang="1"] .fantome { fill: var(--ligne-deux-fantome); }
+
+.case[data-role][data-liaison="1"]::before { background: var(--ligne-deux-fantome); }
+
 /* Les autres plus courts chemins. Discrets par construction : ils repondent a
  * une question que le joueur se pose (« pourquoi le trace a-t-il saute ? »)
  * sans jamais disputer la vedette au trace retenu. */
@@ -153,7 +175,7 @@
     .case[data-refus] { animation: none; }
 }
 
-/* Les deux bouts du chemin : la case elle-meme prend une teinte du trace, sous
+/* Les bouts et les stations : la case elle-meme prend une teinte du trace, sous
  * les marqueurs SVG. Un joueur qui pose son doigt dessus voit qu'elle n'est pas
  * une case comme les autres avant meme de comprendre pourquoi. */
 .case[data-role] { background: none; }
@@ -185,7 +207,14 @@
 
 .plateau[data-vue="machine"] .trace .ruban,
 .plateau[data-vue="machine"] .trace .pastille,
+.plateau[data-vue="machine"] .trace .station,
 .plateau[data-vue="machine"] .trace .anneau { stroke: var(--accent); }
 
 .plateau[data-vue="machine"] .trace .bout { fill: var(--accent); }
+.plateau[data-vue="machine"] .trace .fantome { fill: var(--accent); }
 .plateau[data-vue="machine"] .case[data-role]::before { background: var(--accent); opacity: .25; }
+
+/* Sur la grille de la machine, les deux lignes partagent sa couleur : c'est
+ * elle qu'on regarde, pas laquelle est laquelle. La seconde se distingue par
+ * un trait un peu plus fin. */
+.plateau[data-vue="machine"] .trace .liaison[data-rang="1"] .ruban { stroke-width: .26; }

@@ -14,7 +14,7 @@
 // libre a besoin du solveur pour afficher son troisieme chiffre, et le defi du
 // jour a besoin du catalogue pour afficher le sien.
 
-const VERSION = 'architecte-1.1.0';
+const VERSION = 'architecte-1.2.0';
 
 const COQUILLE = [
     './',
@@ -39,6 +39,7 @@ const COQUILLE = [
     'js/stockage.js',
     'js/themes.js',
     'js/ui.js',
+    'js/variantes.js',
     'data/defis.json',
     'assets/icon.svg',
     'assets/icon-180.png',

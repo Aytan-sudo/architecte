@@ -76,6 +76,14 @@ body {
     letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--texte-doux);
+    /* Deux lignes au plus : « Stations + Double ligne » en ferait trois, et le
+     * bandeau pousserait le plateau vers le bas. Le detail complet reste dans
+     * les Options. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
 }
 
 .icone {
@@ -530,6 +538,19 @@ kbd {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+}
+
+/* Ecran etroit — l'iPhone SE et ses 320 points.
+ *
+ * Quatre boutons de 44 px, leurs ecarts et les marges laissent moins de cent
+ * points au titre : a 1,25 rem, « L'Architecte » s'y coupait au milieu d'un
+ * mot. Les 44 px, eux, ne bougent pas — c'est justement sur les paliers
+ * compacts que la regle se perd d'habitude. */
+@media (max-width: 380px) {
+    .barre { gap: .35rem; }
+    .icone { padding: 0 .2rem; }
+    .titre h1 { font-size: 1rem; }
+    .titre p { font-size: .56rem; letter-spacing: .06em; }
 }
 
 /* Ecran court : on resserre tout ce qui n'est pas le plateau, pour que le jeu

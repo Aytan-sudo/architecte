@@ -6,8 +6,9 @@
 
 import { THEMES, themeDe } from './themes.js';
 import { FORMATS, dateHumaine } from './defi.js';
+import { VARIANTES, disponible, libelleVariantes } from './variantes.js';
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 
 const $ = id => document.getElementById(id);
 
@@ -90,7 +91,8 @@ export function majTitre({ mode, format, date, serie }) {
     if (mode === 'jour') {
         titre.textContent = `Défi du ${dateHumaine(date).slice(0, 5)} · ${format.libelle}${serie > 1 ? ` · série ${serie}` : ''}`;
     } else {
-        titre.textContent = `Partie libre · ${format.lignes}×${format.colonnes} · ${format.murs} murs`;
+        const variantes = format.variantes?.length ? ` · ${libelleVariantes(format.variantes)}` : '';
+        titre.textContent = `Libre · ${format.lignes}×${format.colonnes} · ${format.murs} murs${variantes}`;
     }
     $('nav-jour').setAttribute('aria-current', mode === 'jour' ? 'true' : 'false');
     $('nav-libre').setAttribute('aria-current', mode === 'libre' ? 'true' : 'false');
@@ -147,7 +149,25 @@ export const ouvrir = id => {
 
 // --- Options --------------------------------------------------------------
 
-export function remplirOptions({ preferences, tailles, budgets, surTheme, surTaille, surMurs, surOption }) {
+export function remplirOptions({ preferences, tailles, budgets, surTheme, surTaille, surMurs, surOption, surVariante }) {
+    // Les variantes ne sont proposees que la ou elles ont un sens : la double
+    // ligne demande 16 cases de cote, et la case a cocher le dit au lieu de
+    // disparaitre — une option qui s'evapore laisse croire a une panne.
+    const choixVariantes = $('choix-variantes');
+    choixVariantes.textContent = '';
+    for (const variante of VARIANTES) {
+        const offerte = disponible(variante, preferences.taille);
+        const etiquette = document.createElement('label');
+        etiquette.className = 'option';
+        etiquette.innerHTML = `<input type="checkbox" id="variante-${variante.id}"${offerte ? '' : ' disabled'}>`
+            + `<span><strong>${variante.libelle}</strong><small>${variante.resume}</small>`
+            + `<small>${variante.detail}</small></span>`;
+        const case_ = etiquette.querySelector('input');
+        case_.checked = offerte && preferences.variantes.includes(variante.id);
+        case_.addEventListener('change', () => surVariante(variante.id, case_.checked));
+        choixVariantes.append(etiquette);
+    }
+
     const choixTheme = $('choix-theme');
     choixTheme.textContent = '';
     for (const theme of THEMES) {
@@ -237,10 +257,11 @@ export function ouvrirFin({ etat, format, record, mode, solutionVue = false }) {
 // --- Resultats ------------------------------------------------------------
 
 const libelleConfiguration = cle => {
-    const [mode, taille, murs] = cle.split(':');
+    const [mode, taille, murs, variantes] = cle.split(':');
     const format = Object.values(FORMATS).find(f => `${f.lignes}x${f.colonnes}` === taille && f.murs === Number(murs));
     const nom = mode === 'jour' ? `Défi · ${format?.libelle ?? taille}` : `Libre · ${taille.replace('x', '×')}`;
-    return `${nom} · ${murs} murs`;
+    const suffixe = variantes ? ` · ${libelleVariantes(variantes.split('+'))}` : '';
+    return `${nom} · ${murs} murs${suffixe}`;
 };
 
 export function remplirStats({ stats, records, serie }) {

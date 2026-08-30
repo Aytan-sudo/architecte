@@ -18,23 +18,29 @@ export function counter() {
 // Un plateau ecrit a la main. Une grille lue en entiers ne se relit pas, et un
 // test qu'on ne relit pas ne se corrige pas.
 //
-//   . case libre      # obstacle      E entree      S sortie
+//   .  case libre        #  obstacle
+//   E  entree            S  sortie          de la premiere liaison
+//   e  entree            s  sortie          de la seconde  (variante Double ligne)
+//   1 2 3                stations a desservir dans cet ordre (variante Stations)
 export function plateauDessine(texte) {
     const lignesTexte = texte.trim().split('\n').map(ligne => ligne.trim().split(/\s+/));
     const lignes = lignesTexte.length;
     const colonnes = lignesTexte[0].length;
     const cases = new Uint8Array(lignes * colonnes);
-    let entree = -1;
-    let sortie = -1;
+    const reperes = {};
+    const stations = [];
 
     lignesTexte.forEach((ligne, l) => {
         ligne.forEach((signe, c) => {
             const i = l * colonnes + c;
             if (signe === '#') cases[i] = 1;
-            if (signe === 'E') entree = i;
-            if (signe === 'S') sortie = i;
+            else if (/^[1-9]$/.test(signe)) stations[Number(signe) - 1] = i;
+            else if (signe !== '.') reperes[signe] = i;
         });
     });
 
-    return { lignes, colonnes, entree, sortie, cases };
+    const liaisons = [{ entree: reperes.E, sortie: reperes.S, stations: stations.filter(i => i !== undefined) }];
+    if (reperes.e !== undefined) liaisons.push({ entree: reperes.e, sortie: reperes.s, stations: [] });
+
+    return { lignes, colonnes, liaisons, cases };
 }

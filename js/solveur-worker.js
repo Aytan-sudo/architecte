@@ -22,9 +22,9 @@ import { chercherMeilleur, REGLAGES_RAPIDES, REGLAGES_PROFONDS } from './solveur
 const REGLAGES = { rapides: REGLAGES_RAPIDES, profonds: REGLAGES_PROFONDS };
 
 self.addEventListener('message', evenement => {
-    const { jeton, lignes, colonnes, murs, graine, reglages } = evenement.data;
+    const { jeton, lignes, colonnes, murs, graine, stations, doubleLigne, reglages } = evenement.data;
     try {
-        const { plateau, budget } = genererPlateau({ lignes, colonnes, murs, graine });
+        const { plateau, budget } = genererPlateau({ lignes, colonnes, murs, graine, stations, doubleLigne });
         const trouve = chercherMeilleur(plateau, budget, {
             ...(REGLAGES[reglages] ?? REGLAGES_RAPIDES),
             graine

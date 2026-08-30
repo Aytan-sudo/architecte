@@ -107,6 +107,14 @@
         </div>
         <h3>Le meilleur connu</h3>
         <p>Le troisième chiffre est le meilleur résultat qu’une recherche automatique a su trouver sur cette grille. Ce n’est <strong>pas l’optimum</strong> : personne ne le connaît. Si vous faites mieux, vous avez battu la machine — et le jeu vous le dira.</p>
+        <h3>Les variantes</h3>
+        <p>Dans les Options, deux règles supplémentaires, qui se combinent :</p>
+        <div class="regles">
+            <article><b>◇</b><div><strong>Stations</strong><p>Le chemin doit desservir trois cases marquées d’un losange avant d’atteindre la sortie. Un mur qui allonge un segment peut en raccourcir un autre.</p></div></article>
+            <article><b>≡</b><div><strong>Double ligne</strong><p>Deux liaisons se croisent sur le plateau, et le score est leur somme. Chaque mur devient une négociation entre les deux. À partir de 16 × 16.</p></div></article>
+        </div>
+        <p><small>Le défi du jour reste toujours canonique : c’est ce qui rend les scores comparables d’un joueur à l’autre. Les variantes se jouent en partie libre, avec leurs propres records.</small></p>
+
         <h3>Plusieurs chemins</h3>
         <p>Quand plusieurs chemins font la même longueur, un seul est tracé et les autres apparaissent en pointillés. C’est pourquoi le tracé saute parfois d’un côté à l’autre après une pose sans rapport : ce n’est pas un défaut, c’est le même score par un autre passage.</p>
         <h3>Au clavier</h3>
@@ -131,6 +139,9 @@
             <label for="choix-murs">Murs à poser</label>
             <select id="choix-murs"></select>
         </div>
+
+        <h3>Variantes</h3>
+        <div id="choix-variantes"></div>
 
         <h3>Thème</h3>
         <div class="choix" id="choix-theme" role="group" aria-label="Thème"></div>

@@ -93,8 +93,11 @@ export function creerRendu({ grille, svg }) {
             const ligne = Math.floor(i / plateau.colonnes) + 1;
             const colonne = (i % plateau.colonnes) + 1;
             bouton.setAttribute('aria-label', `ligne ${ligne}, colonne ${colonne}`);
-            if (i === plateau.entree) bouton.dataset.role = 'entree';
-            if (i === plateau.sortie) bouton.dataset.role = 'sortie';
+            plateau.liaisons.forEach((liaison, rang) => {
+                if (i === liaison.entree) { bouton.dataset.role = 'entree'; bouton.dataset.liaison = rang; }
+                if (i === liaison.sortie) { bouton.dataset.role = 'sortie'; bouton.dataset.liaison = rang; }
+                if (liaison.stations.includes(i)) { bouton.dataset.role = 'station'; bouton.dataset.liaison = rang; }
+            });
             grille.append(bouton);
             cases.push(bouton);
         }
@@ -108,7 +111,10 @@ export function creerRendu({ grille, svg }) {
             const bouton = cases[i];
             if (bouton.dataset.etat !== nom) bouton.dataset.etat = nom;
             const role = bouton.dataset.role;
-            const etiquette = role === 'entree' ? 'entrée' : role === 'sortie' ? 'sortie'
+            const suffixe = affiche.liaisons.length > 1 ? ` de la ligne ${Number(bouton.dataset.liaison) + 1}` : '';
+            const etiquette = role === 'entree' ? `entrée${suffixe}`
+                : role === 'sortie' ? `sortie${suffixe}`
+                : role === 'station' ? `station à desservir${suffixe}`
                 : nom === 'mur' ? 'mur posé' : nom === 'obstacle' ? 'béton' : 'libre';
             bouton.setAttribute('aria-label',
                 `ligne ${Math.floor(i / affiche.colonnes) + 1}, colonne ${(i % affiche.colonnes) + 1} : ${etiquette}`);
@@ -122,52 +128,82 @@ export function creerRendu({ grille, svg }) {
         }
     }
 
+    // Le dessin se fait en couches, et non liaison par liaison.
+    //
+    // La raison ne se voit qu'a l'ecran : au croisement de deux lignes, la
+    // station de la premiere passait sous le ruban de la seconde et
+    // disparaissait purement et simplement. Les fantomes d'abord, puis tous les
+    // rubans, puis toutes les marques — ainsi rien de ce qui porte une
+    // information ne se retrouve enterre.
+    const couche = rang => {
+        const groupe = element('g', { class: 'liaison', 'data-rang': rang });
+        svg.append(groupe);
+        return groupe;
+    };
+
+    // Les autres plus courts chemins : la ou le trace aurait pu passer.
+    function dessinerFantomes(groupe, analyse) {
+        for (const i of analyse.alternatives) {
+            const { x, y } = centre(i);
+            groupe.append(element('circle', { class: 'fantome', cx: x, cy: y, r: 0.08 }));
+        }
+    }
+
+    function dessinerRuban(groupe, analyse, bouge) {
+        const ruban = element('path', { class: 'ruban', d: tracer(sommets(analyse.chemin)) });
+        groupe.append(ruban);
+        if (!bouge) return;
+
+        const total = ruban.getTotalLength();
+        ruban.style.strokeDasharray = String(total);
+        ruban.style.strokeDashoffset = String(total);
+        // Une lecture forcee : sans elle, le navigateur regroupe les deux
+        // ecritures et le trace apparait d'un coup.
+        void ruban.getBoundingClientRect();
+        ruban.style.strokeDashoffset = '0';
+    }
+
+    // Les pastilles de virage, les stations et les deux bouts.
+    function dessinerMarques(groupe, analyse, bouge) {
+        analyse.virages.forEach((i, position) => {
+            const { x, y } = centre(i);
+            const pastille = element('circle', { class: 'pastille', cx: x, cy: y, r: 0.15 });
+            if (bouge) {
+                pastille.style.animationDelay = `${(0.12 + (position / Math.max(1, analyse.virages.length)) * 0.3).toFixed(2)}s`;
+            }
+            groupe.append(pastille);
+        });
+
+        // Les stations : un losange, pour ne ressembler ni a un virage ni a un
+        // terminus. Ce sont les seuls points que la ligne doit desservir.
+        for (const i of analyse.stations) {
+            const { x, y } = centre(i);
+            groupe.append(element('rect', {
+                class: 'station', x: x - 0.19, y: y - 0.19, width: 0.38, height: 0.38, rx: 0.06,
+                transform: `rotate(45 ${x} ${y})`
+            }));
+        }
+
+        const depart = centre(analyse.entree);
+        const arrivee = centre(analyse.sortie);
+        groupe.append(element('circle', { class: 'bout', cx: depart.x, cy: depart.y, r: 0.3 }));
+        groupe.append(element('circle', { class: 'bout-creux', cx: depart.x, cy: depart.y, r: 0.13 }));
+        groupe.append(element('circle', { class: 'bout', cx: arrivee.x, cy: arrivee.y, r: 0.3 }));
+        groupe.append(element('circle', { class: 'bout-creux', cx: arrivee.x, cy: arrivee.y, r: 0.13 }));
+        groupe.append(element('circle', { class: 'anneau', cx: arrivee.x, cy: arrivee.y, r: 0.42 }));
+    }
+
     function dessinerTrace(etat, { anime = true, fantomes = true } = {}) {
         svg.textContent = '';
         if (etat.longueur < 0) return;
 
-        // Les autres plus courts chemins, d'abord : ils passent sous le ruban.
-        if (fantomes) {
-            for (const i of etat.alternatives) {
-                const { x, y } = centre(i);
-                svg.append(element('circle', { class: 'fantome', cx: x, cy: y, r: 0.08 }));
-            }
-        }
-
-        const points = sommets(etat.chemin);
-        const ruban = element('path', { class: 'ruban', d: tracer(points) });
-        svg.append(ruban);
-
         const change = derniereLongueur !== null && derniereLongueur !== etat.longueur;
-        const bouge = anime && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const bouge = anime && change && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const praticables = etat.liaisons.filter(analyse => analyse.longueur >= 0);
 
-        if (bouge && change) {
-            const total = ruban.getTotalLength();
-            ruban.style.strokeDasharray = String(total);
-            ruban.style.strokeDashoffset = String(total);
-            // Une lecture forcee : sans elle, le navigateur regroupe les deux
-            // ecritures et le trace apparait d'un coup.
-            void ruban.getBoundingClientRect();
-            ruban.style.strokeDashoffset = '0';
-        }
-
-        // Les pastilles de virage arrivent dans le sillage du ruban.
-        etat.virages.forEach((i, rang) => {
-            const { x, y } = centre(i);
-            const pastille = element('circle', { class: 'pastille', cx: x, cy: y, r: 0.15 });
-            if (bouge && change) {
-                pastille.style.animationDelay = `${(0.12 + (rang / Math.max(1, etat.virages.length)) * 0.3).toFixed(2)}s`;
-            }
-            svg.append(pastille);
-        });
-
-        const depart = centre(affiche.entree);
-        const arrivee = centre(affiche.sortie);
-        svg.append(element('circle', { class: 'bout', cx: depart.x, cy: depart.y, r: 0.3 }));
-        svg.append(element('circle', { class: 'bout-creux', cx: depart.x, cy: depart.y, r: 0.13 }));
-        svg.append(element('circle', { class: 'bout', cx: arrivee.x, cy: arrivee.y, r: 0.3 }));
-        svg.append(element('circle', { class: 'bout-creux', cx: arrivee.x, cy: arrivee.y, r: 0.13 }));
-        svg.append(element('circle', { class: 'anneau', cx: arrivee.x, cy: arrivee.y, r: 0.42 }));
+        if (fantomes) praticables.forEach((analyse, rang) => dessinerFantomes(couche(rang), analyse));
+        praticables.forEach((analyse, rang) => dessinerRuban(couche(rang), analyse, bouge));
+        praticables.forEach((analyse, rang) => dessinerMarques(couche(rang), analyse, bouge));
 
         derniereLongueur = etat.longueur;
     }

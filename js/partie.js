@@ -133,9 +133,10 @@ export function creerPartie({ plateau, budget, meilleurConnu = null, configurati
             }
             return {
                 longueur: analyse.longueur,
-                chemin: analyse.chemin,
-                virages: analyse.virages,
-                alternatives: analyse.alternatives,
+                // Une analyse par liaison : le jeu canonique en a une, la
+                // variante Double ligne en a deux, et le rendu ne fait que les
+                // parcourir.
+                liaisons: analyse.liaisons,
                 nombreTraces: analyse.nombreTraces,
                 murs: [...murs],
                 mursPoses: murs.length,

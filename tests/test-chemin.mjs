@@ -13,7 +13,7 @@ const droit = plateauDessine(`
     E . S
     . . .
 `);
-const analyseDroite = analyser(droit);
+const analyseDroite = analyser(droit).liaisons[0];
 check('la ligne droite mesure deux pas', analyseDroite.longueur === 2, String(analyseDroite.longueur));
 check('le trace passe par le milieu', analyseDroite.chemin.join(',') === '3,4,5', analyseDroite.chemin.join(','));
 check('un seul trace possible', analyseDroite.nombreTraces === 1, String(analyseDroite.nombreTraces));
@@ -25,7 +25,7 @@ const contourne = plateauDessine(`
     E # S
     . . .
 `);
-const analyseContour = analyser(contourne);
+const analyseContour = analyser(contourne).liaisons[0];
 check('contourner coute quatre pas', analyseContour.longueur === 4, String(analyseContour.longueur));
 check('deux traces existent', analyseContour.nombreTraces === 2, String(analyseContour.nombreTraces));
 check('le trace retenu passe par le haut', analyseContour.chemin.join(',') === '3,0,1,2,5', analyseContour.chemin.join(','));
@@ -37,7 +37,7 @@ check('le contournement compte deux virages', analyseContour.virages.length === 
 // Le meme plateau analyse deux fois donne le meme trace : le dessin ne depend
 // pas de l'ordre d'insertion dans une table, il depend de l'ordre des voisins.
 check('l analyse est deterministe',
-    JSON.stringify(analyser(contourne).chemin) === JSON.stringify(analyseContour.chemin));
+    JSON.stringify(analyser(contourne).liaisons[0].chemin) === JSON.stringify(analyseContour.chemin));
 
 // Sortie muree : le moteur le dit, il ne plante pas.
 const ferme = plateauDessine(`
@@ -45,7 +45,8 @@ const ferme = plateauDessine(`
     E . #
     . . #
 `);
-check('une sortie inatteignable renvoie -1', analyser({ ...ferme, sortie: 8 }).longueur === -1);
+check('une sortie inatteignable renvoie -1',
+    analyser({ ...ferme, liaisons: [{ entree: ferme.liaisons[0].entree, sortie: 8, stations: [] }] }).longueur === -1);
 
 // La regle dure.
 const couloir = plateauDessine(`

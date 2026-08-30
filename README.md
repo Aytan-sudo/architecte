@@ -10,6 +10,24 @@ construisez, et la machine qui résout après vous. À chaque mur, elle recalcul
 son chemin, le redessine, et vous montre exactement ce que votre pose lui a
 coûté. Le score est cette longueur.
 
+## Version 1.2.0
+
+- **deux variantes**, qui se combinent : **Stations** (le chemin doit desservir
+  trois cases avant la sortie) et **Double ligne** (deux liaisons se croisent,
+  le score est leur somme, à partir de 16 × 16) ;
+- le moteur n'a pas gagné une branche : une partie est désormais *N liaisons,
+  chacune avec une entrée, une sortie et des stations à desservir*, et le jeu
+  canonique est le cas à une liaison sans station. Les variantes ne font que
+  peupler ce modèle ;
+- le défi du jour reste canonique, et l'empreinte des grilles n'a pas bougé :
+  les 450 défis déjà publiés restent valides ;
+- records séparés par variante, adresse `?v=stations,double` ;
+- correction : au croisement de deux lignes, la station de la première passait
+  sous le ruban de la seconde et disparaissait. Le tracé se dessine maintenant
+  en couches ;
+- correction : sur un écran de 320 points, « L'Architecte » se coupait au
+  milieu d'un mot.
+
 ## Version 1.1.0
 
 - **voir la solution de la machine**, une fois le budget dépensé. Elle n'est pas
@@ -92,8 +110,24 @@ de la semaine — *Esquisse* (10 × 10, 8 murs) du lundi au jeudi, *Chantier*
 Adresse : `?jour=AAAA-MM-JJ`. Seul le défi joué le jour même compte pour la
 série ; un lien du jour rouvert plus tard redonne la grille, hors série.
 
-**Partie libre** — la taille et le budget de votre choix, de 8 × 8 à 20 × 20.
-Partageable par `?taille=…&murs=…&seed=…`.
+**Partie libre** — la taille, le budget et les variantes de votre choix, de
+8 × 8 à 20 × 20. Partageable par `?taille=…&murs=…&seed=…&v=…`.
+
+**Les variantes**, dans les Options, et seulement en partie libre :
+
+- **Stations** — le chemin doit desservir trois cases marquées d'un losange
+  avant d'atteindre la sortie. Un mur qui allonge un segment peut en raccourcir
+  un autre : c'est une autre façon de penser le tracé ;
+- **Double ligne** — deux liaisons se croisent sur le plateau, chacune avec sa
+  couleur, et le score est leur somme. Chaque mur devient une négociation entre
+  les deux, et la règle dure protège les deux liaisons. **À partir de 16 × 16** :
+  en dessous, deux lignes n'ont ni la place de se croiser franchement ni le
+  budget pour se payer chacune un détour. Le budget par défaut est plus large
+  qu'en canonique — un mur sert rarement deux lignes à la fois.
+
+Le **défi du jour reste canonique**, volontairement : avec des variantes, le
+catalogue serait multiplié par leur nombre et les scores du jour cesseraient
+d'être comparables — c'est tout ce qui fait leur valeur.
 
 Les records sont tenus **par configuration** : un détour de 71 en grand œuvre ne
 concourt pas contre un détour de 26 en esquisse.
@@ -120,8 +154,9 @@ navigateur. C’est la contrainte d’architecture la plus importante du projet,
 
 ```
 js/hasard.js       le seul générateur pseudo-aléatoire du projet, à graine
-js/plateau.js      la grille, ses cases, son empreinte
+js/plateau.js      la grille, ses liaisons, son empreinte
 js/chemin.js       parcours en largeur, tracé retenu, tracés multiples, poses interdites
+js/variantes.js    les drapeaux, et rien d'autre — le moteur ne les connaît pas
 js/generateur.js   les plateaux, et les quatre promesses ci-dessous
 js/solveur.js      faisceau + recuit — jamais chargé par la page
 js/partie.js       budget, pose, annulation illimitée, score
@@ -142,6 +177,23 @@ que l’ordre des voisins désigne, fixé une fois pour toutes — et les autres
 apparaissent en pointillés, avec leur nombre annoncé sous les compteurs. Sans
 cela, le tracé qui saute d’un côté à l’autre après une pose sans rapport passe
 pour un bug.
+
+### Un seul modèle pour toutes les variantes
+
+Le moteur ne connaît pas les variantes. Il sait résoudre des **liaisons** : une
+entrée, une sortie, et une liste ordonnée de stations à desservir. Tout le reste
+n'est qu'une façon de peupler ce modèle à la génération —
+
+```
+canonique      1 liaison, 0 station
+Stations       1 liaison, 3 stations
+Double ligne   2 liaisons qui se croisent
+les deux       2 liaisons, 2 stations sur la première
+```
+
+— ce qui explique que les deux variantes se combinent sans qu'une seule ligne de
+code ait eu à le prévoir, et que les quatre promesses ci-dessous valent pour
+toutes, vérifiées par les mêmes tests.
 
 ### Ce que la génération promet
 
@@ -194,7 +246,7 @@ modules ES sont chargés par le navigateur — **ils ne fonctionnent pas en
 
 ```bash
 npm run serve     # http://localhost:8772
-npm test          # 219 vérifications, en Node, sans navigateur
+npm test          # 253 vérifications, en Node, sans navigateur
 npm run check     # node --check sur chaque module
 npm run catalogue # refabrique data/defis.json (quelques minutes)
 ```
@@ -217,6 +269,15 @@ qu’elle l’a fait.
 **Les diagonales.** Le chemin se déplace en quatre directions. Les huit
 directions rendraient les murs beaucoup moins efficaces et le tracé beaucoup
 moins lisible.
+
+**Les variantes dans le défi du jour.** Elles y feraient perdre la
+comparabilité, qui est la seule raison d'être d'un défi commun. Elles vivent en
+partie libre, avec leurs propres records.
+
+**Deux chemins disjoints obligatoires.** Étudiée, écartée : elle demande un
+calcul de flot à chaque pose candidate, ce qui ralentit le solveur d'un ordre de
+grandeur, et elle raconte moins bien la robustesse qu'une variante « saboteur »
+le ferait pour dix fois moins cher. À reprendre le jour où l'on voudra ça.
 
 **Le glissé pour poser une rangée de murs.** Un seul geste, une seule case. Le
 plaisir du jeu est dans l’hésitation, pas dans la vitesse de pose.

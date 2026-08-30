@@ -2,9 +2,15 @@
 //
 // Ce module est le juge du jeu : c'est lui qui donne le score, lui qui refuse
 // une pose, lui qui designe le trace dessine a l'ecran. Il ne connait ni le DOM
-// ni le hasard — un parcours en largeur sur une grille, rien d'autre.
+// ni le hasard — des parcours en largeur sur une grille, rien d'autre.
 //
-// Deux choix meritent d'etre ecrits :
+// Une liaison va de son entree a sa sortie en desservant ses stations dans
+// l'ordre : elle se mesure donc en autant de segments qu'il y a d'etapes, et le
+// score du plateau est la somme de toutes ses liaisons. Le jeu canonique est le
+// cas a une liaison, zero station, un seul segment — la generalisation ne lui
+// coute rien.
+//
+// Trois choix meritent d'etre ecrits :
 //
 // 1. L'ordre des voisins est fixe (haut, droite, bas, gauche). Quand plusieurs
 //    plus courts chemins existent, c'est cet ordre qui decide lequel est
@@ -15,8 +21,12 @@
 // 2. Les tampons sont fournis par l'appelant dans les boucles chaudes. Le
 //    solveur evalue des dizaines de milliers de positions ; allouer deux
 //    tableaux a chaque fois couterait plus cher que le parcours lui-meme.
+//
+// 3. Un segment ignore les stations des autres segments : le trace peut donc se
+//    recouper. C'est voulu — sur un plan de reseau, une ligne se croise elle-meme
+//    sans que cela pose de question a personne.
 
-import { LIBRE, MUR, avecCases, posable } from './plateau.js';
+import { LIBRE, MUR, avecCases, posable, etapes } from './plateau.js';
 
 export const creerTampons = taille => ({
     distances: new Int32Array(taille),
@@ -24,7 +34,7 @@ export const creerTampons = taille => ({
 });
 
 // Parcours en largeur depuis une case. Renvoie le tableau des distances, -1
-// pour l'inatteignable. `arret` permet de s'arreter des que la sortie est vue :
+// pour l'inatteignable. `arret` permet de s'arreter des que la cible est vue :
 // dans le solveur, on ne veut que la longueur, pas la carte complete.
 export function remplirDistances(plateau, depart, tampons, arret = -1) {
     const { cases, colonnes, lignes } = plateau;
@@ -56,12 +66,21 @@ export function distances(plateau, depart) {
     return Int32Array.from(remplirDistances(plateau, depart, tampons));
 }
 
-// La longueur du plus court chemin, en pas. -1 si la sortie n'est plus
-// joignable — c'est la seule chose que la regle dure a besoin de savoir.
+// La longueur totale : toutes les liaisons, tous leurs segments. -1 des qu'une
+// etape n'est plus joignable — c'est la seule chose que la regle dure a besoin
+// de savoir.
 export function longueur(plateau, tampons = null) {
     const t = tampons ?? creerTampons(plateau.cases.length);
-    const d = remplirDistances(plateau, plateau.entree, t, plateau.sortie);
-    return d[plateau.sortie];
+    let total = 0;
+    for (const liaison of plateau.liaisons) {
+        const points = etapes(liaison);
+        for (let k = 1; k < points.length; k++) {
+            const d = remplirDistances(plateau, points[k - 1], t, points[k]);
+            if (d[points[k]] < 0) return -1;
+            total += d[points[k]];
+        }
+    }
+    return total;
 }
 
 export const relie = (plateau, tampons = null) => longueur(plateau, tampons) >= 0;
@@ -74,84 +93,64 @@ function direction(plateau, de, vers) {
     return ecart > 0 ? 'bas' : 'haut';
 }
 
-// L'analyse complete, celle dont l'interface a besoin : le trace retenu, les
-// cases ou passe un autre plus court chemin, le nombre de traces, et les
-// virages — l'element signature du dessin.
-export function analyser(plateau) {
+const PLAFOND_TRACES = 999;
+
+// Un segment : d'une etape a la suivante. C'est ici que se decide le trace
+// dessine, et ce qu'on saura des autres traces de meme longueur.
+function analyserSegment(plateau, depart, arrivee, tampons) {
     const n = plateau.cases.length;
-    const tampons = creerTampons(n);
-    const depuisEntree = Int32Array.from(remplirDistances(plateau, plateau.entree, tampons));
-    const total = depuisEntree[plateau.sortie];
+    const depuisDepart = Int32Array.from(remplirDistances(plateau, depart, tampons));
+    const total = depuisDepart[arrivee];
+    if (total < 0) return null;
 
-    if (total < 0) {
-        return { longueur: -1, chemin: [], virages: [], alternatives: [], nombreTraces: 0 };
-    }
+    const depuisArrivee = Int32Array.from(remplirDistances(plateau, arrivee, tampons));
 
-    const depuisSortie = Int32Array.from(remplirDistances(plateau, plateau.sortie, tampons));
-
-    // Le trace retenu : on descend vers la sortie en suivant l'ordre des
+    // Le trace retenu : on descend vers l'arrivee en suivant l'ordre des
     // voisins, ce qui donne toujours le meme chemin pour la meme grille.
-    const chemin = [plateau.entree];
-    let courante = plateau.entree;
-    while (courante !== plateau.sortie) {
-        const cible = depuisSortie[courante] - 1;
+    const chemin = [depart];
+    let courante = depart;
+    while (courante !== arrivee) {
+        const cible = depuisArrivee[courante] - 1;
         const { colonnes, lignes, cases } = plateau;
         const l = Math.floor(courante / colonnes);
         const c = courante % colonnes;
         let suivante = -1;
-        if (l > 0 && cases[courante - colonnes] === LIBRE && depuisSortie[courante - colonnes] === cible) suivante = courante - colonnes;
-        else if (c < colonnes - 1 && cases[courante + 1] === LIBRE && depuisSortie[courante + 1] === cible) suivante = courante + 1;
-        else if (l < lignes - 1 && cases[courante + colonnes] === LIBRE && depuisSortie[courante + colonnes] === cible) suivante = courante + colonnes;
-        else if (c > 0 && cases[courante - 1] === LIBRE && depuisSortie[courante - 1] === cible) suivante = courante - 1;
+        if (l > 0 && cases[courante - colonnes] === LIBRE && depuisArrivee[courante - colonnes] === cible) suivante = courante - colonnes;
+        else if (c < colonnes - 1 && cases[courante + 1] === LIBRE && depuisArrivee[courante + 1] === cible) suivante = courante + 1;
+        else if (l < lignes - 1 && cases[courante + colonnes] === LIBRE && depuisArrivee[courante + colonnes] === cible) suivante = courante + colonnes;
+        else if (c > 0 && cases[courante - 1] === LIBRE && depuisArrivee[courante - 1] === cible) suivante = courante - 1;
         if (suivante < 0) break;
         chemin.push(suivante);
         courante = suivante;
     }
 
-    // Les virages : la ou la direction change. Ils portent une pastille a
-    // l'ecran, et ils disent d'un coup d'oeil combien le trace a du plier.
-    const virages = [];
-    for (let k = 1; k < chemin.length - 1; k++) {
-        if (direction(plateau, chemin[k - 1], chemin[k]) !== direction(plateau, chemin[k], chemin[k + 1])) {
-            virages.push(chemin[k]);
-        }
-    }
-
-    // Toute case qui appartient a un plus court chemin : sa distance depuis
-    // l'entree plus sa distance depuis la sortie fait exactement le total.
+    // Toute case qui appartient a un plus court chemin : sa distance depuis le
+    // depart plus sa distance depuis l'arrivee fait exactement le total.
     const surUnChemin = new Uint8Array(n);
-    const alternatives = [];
-    const dansLeTrace = new Set(chemin);
     for (let i = 0; i < n; i++) {
-        if (depuisEntree[i] < 0 || depuisSortie[i] < 0) continue;
-        if (depuisEntree[i] + depuisSortie[i] !== total) continue;
-        surUnChemin[i] = 1;
-        if (!dansLeTrace.has(i)) alternatives.push(i);
+        if (depuisDepart[i] < 0 || depuisArrivee[i] < 0) continue;
+        if (depuisDepart[i] + depuisArrivee[i] === total) surUnChemin[i] = 1;
     }
 
     return {
         longueur: total,
         chemin,
-        virages,
-        alternatives,
-        nombreTraces: compterTraces(plateau, depuisEntree, surUnChemin, total),
-        surUnChemin
+        surUnChemin,
+        nombreTraces: compterTraces(plateau, depart, arrivee, depuisDepart, surUnChemin, total)
     };
 }
 
 // Combien de plus courts chemins ? Un comptage par couches sur le graphe des
 // cases utiles. Plafonne : au-dela de mille, le chiffre exact n'apprend plus
 // rien au joueur et deborderait vite.
-const PLAFOND_TRACES = 999;
-
-function compterTraces(plateau, depuisEntree, surUnChemin, total) {
+function compterTraces(plateau, depart, arrivee, depuisDepart, surUnChemin, total) {
     const n = plateau.cases.length;
     const nombre = new Float64Array(n);
     const parCouche = Array.from({ length: total + 1 }, () => []);
     for (let i = 0; i < n; i++) {
-        if (surUnChemin[i]) parCouche[depuisEntree[i]].push(i);
+        if (surUnChemin[i]) parCouche[depuisDepart[i]].push(i);
     }
-    nombre[plateau.entree] = 1;
+    nombre[depart] = 1;
     const { colonnes, lignes } = plateau;
     for (let d = 0; d < total; d++) {
         for (const i of parCouche[d]) {
@@ -159,7 +158,7 @@ function compterTraces(plateau, depuisEntree, surUnChemin, total) {
             const l = Math.floor(i / colonnes);
             const c = i % colonnes;
             const pousser = v => {
-                if (surUnChemin[v] && depuisEntree[v] === d + 1) {
+                if (surUnChemin[v] && depuisDepart[v] === d + 1) {
                     nombre[v] = Math.min(PLAFOND_TRACES + 1, nombre[v] + nombre[i]);
                 }
             };
@@ -169,10 +168,111 @@ function compterTraces(plateau, depuisEntree, surUnChemin, total) {
             if (c > 0) pousser(i - 1);
         }
     }
-    return Math.min(PLAFOND_TRACES + 1, nombre[plateau.sortie]);
+    return Math.min(PLAFOND_TRACES + 1, nombre[arrivee]);
 }
 
-// La regle dure, cote moteur : poser ici laisserait-il un chemin ?
+// Une liaison entiere : ses segments mis bout a bout.
+export function analyserLiaison(plateau, liaison, tampons = null) {
+    const t = tampons ?? creerTampons(plateau.cases.length);
+    const points = etapes(liaison);
+    const vide = {
+        longueur: -1, chemin: [], virages: [], alternatives: [], nombreTraces: 0,
+        stations: liaison.stations, entree: liaison.entree, sortie: liaison.sortie
+    };
+
+    let total = 0;
+    let traces = 1;
+    const chemin = [];
+    const surUnChemin = new Uint8Array(plateau.cases.length);
+
+    for (let k = 1; k < points.length; k++) {
+        const segment = analyserSegment(plateau, points[k - 1], points[k], t);
+        if (!segment) return vide;
+        total += segment.longueur;
+        traces = Math.min(PLAFOND_TRACES + 1, traces * segment.nombreTraces);
+        // La case de jonction appartient aux deux segments : on ne la compte
+        // qu'une fois, sinon le trace bafouille a chaque station.
+        chemin.push(...(chemin.length ? segment.chemin.slice(1) : segment.chemin));
+        for (let i = 0; i < surUnChemin.length; i++) surUnChemin[i] ||= segment.surUnChemin[i];
+    }
+
+    // Les virages : la ou la direction change. Ils portent une pastille a
+    // l'ecran, et ils disent d'un coup d'oeil combien le trace a du plier. Les
+    // stations en sont exclues : elles ont deja leur propre marque.
+    const virages = [];
+    const stations = new Set(liaison.stations);
+    for (let k = 1; k < chemin.length - 1; k++) {
+        if (stations.has(chemin[k])) continue;
+        if (direction(plateau, chemin[k - 1], chemin[k]) !== direction(plateau, chemin[k], chemin[k + 1])) {
+            virages.push(chemin[k]);
+        }
+    }
+
+    const dansLeTrace = new Set(chemin);
+    const alternatives = [];
+    for (let i = 0; i < surUnChemin.length; i++) {
+        if (surUnChemin[i] && !dansLeTrace.has(i)) alternatives.push(i);
+    }
+
+    return {
+        longueur: total,
+        chemin,
+        virages,
+        alternatives,
+        nombreTraces: traces,
+        surUnChemin,
+        stations: liaison.stations,
+        entree: liaison.entree,
+        sortie: liaison.sortie
+    };
+}
+
+// L'analyse complete, celle dont l'interface a besoin.
+export function analyser(plateau) {
+    const tampons = creerTampons(plateau.cases.length);
+    const liaisons = plateau.liaisons.map(liaison => analyserLiaison(plateau, liaison, tampons));
+    const coupee = liaisons.some(analyse => analyse.longueur < 0);
+
+    return {
+        longueur: coupee ? -1 : liaisons.reduce((somme, analyse) => somme + analyse.longueur, 0),
+        // Le nombre de traces du plateau est le produit de ceux des liaisons :
+        // chaque combinaison est une facon de dessiner la meme partie.
+        nombreTraces: coupee ? 0 : Math.min(PLAFOND_TRACES + 1,
+            liaisons.reduce((produit, analyse) => produit * analyse.nombreTraces, 1)),
+        liaisons
+    };
+}
+
+// Les cases qui valent la peine d'etre essayees par le solveur : celles qui
+// portent un plus court chemin, tous segments confondus. Un mur pose ailleurs
+// ne change pas la longueur — c'est l'elagage sur lequel repose toute la
+// recherche. Deux jeux de tampons parce qu'il faut deux cartes de distances a
+// la fois.
+export function casesUtiles(plateau, tamponsA, tamponsB) {
+    const n = plateau.cases.length;
+    const utiles = new Uint8Array(n);
+    let total = 0;
+
+    for (const liaison of plateau.liaisons) {
+        const points = etapes(liaison);
+        for (let k = 1; k < points.length; k++) {
+            const depuisDepart = remplirDistances(plateau, points[k - 1], tamponsA);
+            const segment = depuisDepart[points[k]];
+            if (segment < 0) return { total: -1, utiles };
+            const depuisArrivee = remplirDistances(plateau, points[k], tamponsB);
+            total += segment;
+            for (let i = 0; i < n; i++) {
+                if (depuisDepart[i] >= 0 && depuisArrivee[i] >= 0 && depuisDepart[i] + depuisArrivee[i] === segment) {
+                    utiles[i] = 1;
+                }
+            }
+        }
+    }
+    return { total, utiles };
+}
+
+// La regle dure, cote moteur : poser ici laisserait-il toutes les liaisons
+// praticables ?
 export function poseLegale(plateau, i, tampons = null) {
     if (!posable(plateau, i)) return false;
     const t = tampons ?? creerTampons(plateau.cases.length);
@@ -186,9 +286,9 @@ export function poseLegale(plateau, i, tampons = null) {
 // pose sans delai, et pour reconnaitre l'impasse — le cas, rarissime, ou il
 // reste des murs mais plus aucune pose legale.
 //
-// Cout : un parcours par case libre, soit 65 000 visites sur une grille de 256
-// cases. Mesure a moins d'une milliseconde ; le calcul incremental attendra
-// d'etre necessaire.
+// Cout : un parcours par case libre et par segment, soit 65 000 visites sur une
+// grille de 256 cases a une liaison. Mesure a moins d'une milliseconde ; le
+// calcul incremental attendra d'etre necessaire.
 export function casesInterdites(plateau) {
     const n = plateau.cases.length;
     const interdites = new Uint8Array(n);
