@@ -1,0 +1,168 @@
+/* La geometrie du jeu : la grille, et le trace par-dessus.
+ *
+ * La grille est un quadrillage sans gouttiere — les cases se touchent. C'est ce
+ * qui permet au calque SVG d'utiliser la case comme unite : le centre de la
+ * case (l, c) tombe exactement en (c + 0.5, l + 0.5), et le trace se decrit en
+ * coordonnees de grille sans jamais mesurer un pixel. */
+
+/* La largeur du plateau est aussi bornee par la hauteur libre : sur un
+ * telephone, le jeu entier — compteurs, plateau, actions, modes — doit tenir
+ * sans defilement. Le max() garde un plancher : mieux vaut un pouce de
+ * defilement qu'un plateau devenu illisible sur un tres petit ecran. */
+.plateau {
+    position: relative;
+    width: min(100%, 32rem, max(70vw, 100vh - 19rem));
+    margin: 0 auto;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: var(--case);
+    box-shadow: inset 0 0 0 1px var(--bord), var(--ombre);
+    overflow: hidden;
+    touch-action: manipulation;
+}
+
+.grille {
+    display: grid;
+    grid-template-columns: repeat(var(--colonnes), 1fr);
+    width: 100%;
+    height: 100%;
+}
+
+/* Une case : un bouton, pour que le clavier et les lecteurs d'ecran suivent. */
+.case {
+    appearance: none;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: var(--case);
+    box-shadow: inset 0 0 0 .5px var(--case-bord);
+    aspect-ratio: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+
+.case:focus-visible {
+    outline: 2px solid var(--ligne);
+    outline-offset: -3px;
+    z-index: 3;
+}
+
+/* Le beton : ce qui etait deja la. Une trame diagonale le distingue d'un mur du
+ * joueur meme sans la couleur — l'option « signes » la renforce. */
+.case[data-etat="obstacle"] {
+    background:
+        repeating-linear-gradient(45deg,
+            var(--beton) 0 3px,
+            var(--beton-trame) 3px 6px);
+    box-shadow: inset 0 0 0 .5px var(--beton-trame);
+    cursor: default;
+}
+
+/* Le mur du joueur : pose, pas dessine. Coins arrondis, une arete claire en
+ * haut, une ombre courte en bas — il a l'air d'etre tombe sur la grille. */
+.case[data-etat="mur"] { background: var(--case); }
+
+.case[data-etat="mur"]::after {
+    content: "";
+    position: absolute;
+    inset: 6%;
+    border-radius: 22%;
+    background: var(--mur);
+    box-shadow:
+        inset 0 .12em 0 var(--mur-relief),
+        0 .06em .12em var(--ombre-mur);
+    animation: pose .22s cubic-bezier(.2, 1.5, .4, 1);
+}
+
+@keyframes pose {
+    from { transform: scale(.4); opacity: .2; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Le refus : la case recule, elle ne s'excuse pas. Aucune boite de dialogue ne
+ * vient dire au joueur ce qu'il vient de comprendre tout seul. */
+.case[data-refus] { animation: refus .3s ease; z-index: 4; }
+.case[data-refus]::before {
+    content: "";
+    position: absolute;
+    inset: 4%;
+    border-radius: 18%;
+    box-shadow: inset 0 0 0 2px var(--danger);
+    animation: refus-eclat .45s ease forwards;
+}
+
+@keyframes refus {
+    10%, 60% { transform: translateX(-9%); }
+    35%, 85% { transform: translateX(9%); }
+    100% { transform: translateX(0); }
+}
+
+@keyframes refus-eclat {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* Le calque du trace. Il ne recoit aucun appui : ce sont les cases qui jouent. */
+.trace {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.trace .ruban {
+    fill: none;
+    stroke: var(--ligne);
+    stroke-width: .34;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke-dashoffset .42s cubic-bezier(.22, .61, .36, 1);
+}
+
+/* L'element signature : une pastille a chaque virage. Elle donne au trace son
+ * air de ligne de reseau, et elle compte les detours a l'oeil nu. */
+.trace .pastille {
+    fill: var(--pastille);
+    stroke: var(--ligne);
+    stroke-width: .085;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pastille .3s ease backwards;
+}
+
+@keyframes pastille {
+    from { opacity: 0; transform: scale(.2); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.trace .bout { fill: var(--ligne); }
+.trace .bout-creux { fill: var(--pastille); }
+.trace .anneau { fill: none; stroke: var(--ligne); stroke-width: .09; }
+
+/* Les autres plus courts chemins. Discrets par construction : ils repondent a
+ * une question que le joueur se pose (« pourquoi le trace a-t-il saute ? »)
+ * sans jamais disputer la vedette au trace retenu. */
+.trace .fantome { fill: var(--ligne-fantome); }
+
+@media (prefers-reduced-motion: reduce) {
+    .case[data-etat="mur"]::after,
+    .trace .pastille { animation: none; }
+    .trace .ruban { transition: opacity .2s linear; }
+    .case[data-refus] { animation: none; }
+}
+
+/* Les deux bouts du chemin : la case elle-meme prend une teinte du trace, sous
+ * les marqueurs SVG. Un joueur qui pose son doigt dessus voit qu'elle n'est pas
+ * une case comme les autres avant meme de comprendre pourquoi. */
+.case[data-role] { background: none; }
+.case[data-role]::before {
+    content: "";
+    position: absolute;
+    inset: 4%;
+    border-radius: 26%;
+    background: var(--ligne-fantome);
+}
+.case[data-role]::after { content: none; }

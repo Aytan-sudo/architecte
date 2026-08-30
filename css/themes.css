@@ -1,0 +1,141 @@
+/* Les palettes, seule source des couleurs du jeu.
+ *
+ * Direction : le detour traite comme une ligne de reseau. Fond de plan clair et
+ * mat, beton pour ce qui etait deja la, anthracite pour ce que le joueur pose,
+ * et une couleur pleine — une seule — pour le trace. Elle n'a de concurrent
+ * nulle part ailleurs sur l'ecran : c'est l'objet du jeu.
+ *
+ * Chaque theme redefinit la palette entiere. tests/test-themes.mjs compare
+ * chaque palette a celle de reference (carmin) : une variable oubliee ne plante
+ * pas, elle laisse une couleur claire au milieu d'un theme sombre. */
+
+:root,
+[data-theme="carmin"] {
+    --fond: #f7f3ea;
+    --surface: #fffdf8;
+    --bord: #e0d8c9;
+    --texte: #2c2926;
+    --texte-doux: #7c7468;
+
+    --case: #efe9dc;
+    --case-bord: #e4dccc;
+    --beton: #b9b2a6;
+    --beton-trame: #a9a195;
+    --mur: #35322d;
+    --mur-relief: #4b4740;
+
+    --ligne: #e2483d;
+    --ligne-fantome: #e2483d33;
+    --pastille: #fffdf8;
+    --accent: #f2b33d;
+    --danger: #b03a2e;
+
+    --voile: rgba(44, 41, 38, .45);
+    --ombre-mur: rgba(0, 0, 0, .28);
+    --ombre: 0 1px 0 rgba(44, 41, 38, .14);
+    --ombre-carte: 0 18px 48px rgba(44, 41, 38, .2);
+}
+
+[data-theme="menthe"] {
+    --fond: #f1f5f1;
+    --surface: #fbfdfb;
+    --bord: #d3ded6;
+    --texte: #24312b;
+    --texte-doux: #6d7f76;
+
+    --case: #e6ece7;
+    --case-bord: #d9e2db;
+    --beton: #aab8ae;
+    --beton-trame: #99a89e;
+    --mur: #2e3a34;
+    --mur-relief: #445048;
+
+    --ligne: #0e8c6a;
+    --ligne-fantome: #0e8c6a33;
+    --pastille: #fbfdfb;
+    --accent: #e08b2c;
+    --danger: #a63b33;
+
+    --voile: rgba(36, 49, 43, .45);
+    --ombre-mur: rgba(0, 0, 0, .28);
+    --ombre: 0 1px 0 rgba(36, 49, 43, .14);
+    --ombre-carte: 0 18px 48px rgba(36, 49, 43, .2);
+}
+
+[data-theme="papier"] {
+    --fond: #fbf9f4;
+    --surface: #ffffff;
+    --bord: #e6e0d4;
+    --texte: #2b2a33;
+    --texte-doux: #78737f;
+
+    --case: #f2eee5;
+    --case-bord: #e8e2d6;
+    --beton: #cfc8bc;
+    --beton-trame: #bcb4a6;
+    --mur: #2b2a33;
+    --mur-relief: #45434f;
+
+    --ligne: #6a4cc7;
+    --ligne-fantome: #6a4cc733;
+    --pastille: #ffffff;
+    --accent: #e0a32e;
+    --danger: #b0453a;
+
+    --voile: rgba(43, 42, 51, .42);
+    --ombre-mur: rgba(0, 0, 0, .26);
+    --ombre: 0 1px 0 rgba(43, 42, 51, .12);
+    --ombre-carte: 0 18px 48px rgba(43, 42, 51, .18);
+}
+
+[data-theme="encre"] {
+    --fond: #171a21;
+    --surface: #1f242d;
+    --bord: #2f3745;
+    --texte: #eef1f6;
+    --texte-doux: #9aa4b5;
+
+    --case: #212733;
+    --case-bord: #2b3340;
+    --beton: #3c4350;
+    --beton-trame: #4a5262;
+    --mur: #0b0d12;
+    --mur-relief: #262c37;
+
+    --ligne: #f2a93b;
+    --ligne-fantome: #f2a93b3d;
+    --pastille: #1f242d;
+    --accent: #7fd1c1;
+    --danger: #e2685c;
+
+    --voile: rgba(6, 8, 12, .6);
+    --ombre-mur: rgba(0, 0, 0, .5);
+    --ombre: 0 1px 0 rgba(0, 0, 0, .5);
+    --ombre-carte: 0 18px 48px rgba(0, 0, 0, .55);
+}
+
+[data-theme="prune"] {
+    --fond: #221a24;
+    --surface: #2c222f;
+    --bord: #453750;
+    --texte: #f4ecf3;
+    --texte-doux: #b09cb4;
+
+    --case: #2b2130;
+    --case-bord: #3a2c40;
+    --beton: #4d3d54;
+    --beton-trame: #5d4a65;
+    --mur: #120d14;
+    --mur-relief: #322638;
+
+    --ligne: #f0708f;
+    --ligne-fantome: #f0708f3d;
+    --pastille: #2c222f;
+    --accent: #f5c86b;
+    --danger: #e2685c;
+
+    --voile: rgba(12, 8, 14, .6);
+    --ombre-mur: rgba(0, 0, 0, .5);
+    --ombre: 0 1px 0 rgba(0, 0, 0, .5);
+    --ombre-carte: 0 18px 48px rgba(0, 0, 0, .55);
+}

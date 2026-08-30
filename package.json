@@ -1,0 +1,13 @@
+{
+    "name": "architecte",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Le joueur construit le detour, la machine mesure. Jouable hors ligne.",
+    "type": "module",
+    "scripts": {
+        "test": "node tests/test-chemin.mjs && node tests/test-generateur.mjs && node tests/test-solveur.mjs && node tests/test-partie.mjs && node tests/test-defi.mjs && node tests/test-stockage.mjs && node tests/test-son.mjs && node tests/test-themes.mjs && node tests/test-page.mjs",
+        "check": "node --check js/app.js && node --check js/chemin.js && node --check js/defi.js && node --check js/entree.js && node --check js/generateur.js && node --check js/hasard.js && node --check js/partie.js && node --check js/plateau.js && node --check js/recherche.js && node --check js/rendu.js && node --check js/solveur.js && node --check js/solveur-worker.js && node --check js/son.js && node --check js/stockage.js && node --check js/themes.js && node --check js/ui.js && node --check sw.js",
+        "serve": "python3 -m http.server 8772",
+        "catalogue": "node scripts/catalogue.mjs --jours 420 --sortie data/defis.json"
+    }
+}

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>L’Architecte</title>
+<meta name="description" content="Posez vos murs, la machine recalcule le plus court chemin. Le but : l’allonger. Jouable au doigt, hors ligne.">
+<meta name="theme-color" content="#f7f3ea" id="couleur-barre">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/plateau.css">
+<link rel="stylesheet" href="css/interface.css">
+<script>
+    // Le theme se pose avant le premier pixel.
+    //
+    // js/themes.js sait le faire, mais il arrive avec app.js, module differe :
+    // la page s'afficherait une fraction de seconde en carmin avant de virer au
+    // theme choisi. Ces quelques lignes-la, et elles seules, ont le droit de
+    // doubler la liste des themes — tests/test-themes.mjs compare les deux et
+    // refuse qu'elles divergent.
+    try {
+        const THEMES = { carmin: '#f7f3ea', menthe: '#f1f5f1', papier: '#fbf9f4', encre: '#171a21', prune: '#221a24' };
+        const preferences = JSON.parse(localStorage.getItem('architecte.preferences') || '{}');
+        const couleur = THEMES[preferences.theme];
+        if (couleur) {
+            document.documentElement.dataset.theme = preferences.theme;
+            document.getElementById('couleur-barre').content = couleur;
+        }
+    } catch { /* le carmin reste disponible */ }
+</script>
+</head>
+<body>
+
+<div class="page">
+
+    <header class="barre">
+        <button type="button" class="icone titre" id="stats-ouvrir" aria-label="Résultats et séries" style="flex:1;text-align:left;justify-content:flex-start">
+            <span>
+                <h1>L’Architecte</h1>
+                <p id="titre-mode">Défi du jour</p>
+            </span>
+        </button>
+        <button type="button" class="icone" id="aide-ouvrir" aria-label="Règles du jeu">?</button>
+        <button type="button" class="icone" id="theme-basculer" aria-label="Changer de thème">◐</button>
+        <button type="button" class="icone" id="options-ouvrir" aria-label="Options">⚙</button>
+        <button type="button" class="icone" id="son-basculer" aria-label="Son" aria-pressed="true">♪</button>
+    </header>
+
+    <section class="compteurs" aria-label="Tableau de bord">
+        <div class="compteur principal">
+            <span>Détour</span>
+            <strong id="valeur-detour" aria-live="off">—</strong>
+        </div>
+        <div class="compteur" id="compteur-murs">
+            <span>Murs restants</span>
+            <strong id="valeur-murs">—</strong>
+        </div>
+        <div class="compteur" id="compteur-meilleur">
+            <span>Meilleur connu</span>
+            <strong id="valeur-meilleur">—</strong>
+        </div>
+    </section>
+
+    <p class="mention" id="mention"></p>
+
+    <main class="plateau" id="plateau" data-cible-libre="le plateau fait de dix a seize cases par rangee : a 44 px la case, la grille depasserait trois fois la largeur d un telephone">
+        <div class="grille" id="grille" role="grid" aria-label="Plateau de construction"></div>
+        <svg class="trace" id="trace" aria-hidden="true"></svg>
+    </main>
+
+    <div class="actions">
+        <button type="button" class="action" id="action-annuler" disabled><span aria-hidden="true">↶</span>Annuler</button>
+        <button type="button" class="action" id="action-refaire" disabled><span aria-hidden="true">↷</span>Refaire</button>
+        <button type="button" class="action" id="action-recommencer"><span aria-hidden="true">⟲</span>Relancer</button>
+        <button type="button" class="action" id="action-partager"><span aria-hidden="true">↑</span>Partager</button>
+    </div>
+
+    <nav class="navigation" aria-label="Modes de jeu">
+        <button type="button" id="nav-jour"><span>Le même pour tous</span><strong>Défi du jour</strong></button>
+        <button type="button" id="nav-libre"><span>Taille et budget</span><strong>Partie libre</strong></button>
+    </nav>
+
+</div>
+
+<p class="annonce" id="annonce" role="status" aria-live="polite"></p>
+
+<dialog id="dialogue-aide">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende">Notice de chantier</p><h2>Construire le détour</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <p>Tous les autres jeux vous demandent de résoudre ce qu’une machine a posé. Ici, c’est l’inverse : <strong>vous construisez, la machine résout après vous</strong>.</p>
+        <div class="regles">
+            <article><b>01</b><div><strong>Poser</strong><p>Tapez une case libre : un mur s’y pose. Retapez-la : il repart. Rien d’autre à apprendre.</p></div></article>
+            <article><b>02</b><div><strong>Regarder</strong><p>À chaque pose, le plus court chemin de l’entrée à la sortie est recalculé et redessiné. Sa longueur est votre score.</p></div></article>
+            <article><b>03</b><div><strong>Allonger</strong><p>Le but est de rendre ce chemin le plus long possible en ayant posé tous vos murs.</p></div></article>
+            <article><b>04</b><div><strong>Ne jamais fermer</strong><p>Un mur qui rendrait la sortie inatteignable est refusé : la case recule, et votre budget reste intact.</p></div></article>
+        </div>
+        <h3>Le meilleur connu</h3>
+        <p>Le troisième chiffre est le meilleur résultat qu’une recherche automatique a su trouver sur cette grille. Ce n’est <strong>pas l’optimum</strong> : personne ne le connaît. Si vous faites mieux, vous avez battu la machine — et le jeu vous le dira.</p>
+        <h3>Plusieurs chemins</h3>
+        <p>Quand plusieurs chemins font la même longueur, un seul est tracé et les autres apparaissent en pointillés. C’est pourquoi le tracé saute parfois d’un côté à l’autre après une pose sans rapport : ce n’est pas un défaut, c’est le même score par un autre passage.</p>
+        <h3>Au clavier</h3>
+        <p><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> déplacent, <kbd>Entrée</kbd> pose ou retire. <kbd>U</kbd> ou <kbd>Ctrl+Z</kbd> annulent, <kbd>Y</kbd> refait, <kbd>R</kbd> relance la partie, <kbd>N</kbd> en commence une nouvelle, <kbd>T</kbd> change de thème, <kbd>?</kbd> ouvre cette notice, <kbd>Échap</kbd> ferme.</p>
+        <div class="feuille-actions"><button type="button" class="primaire" data-fermer>Commencer</button></div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-options">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende">Le bureau d’études</p><h2>Options</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+
+        <h3>Partie libre</h3>
+        <div class="reglage">
+            <label for="choix-taille">Taille du plateau</label>
+            <select id="choix-taille"></select>
+        </div>
+        <div class="reglage">
+            <label for="choix-murs">Murs à poser</label>
+            <select id="choix-murs"></select>
+        </div>
+
+        <h3>Thème</h3>
+        <div class="choix" id="choix-theme" role="group" aria-label="Thème"></div>
+
+        <h3>Sensations</h3>
+        <label class="option"><input type="checkbox" id="option-sons"><span><strong>Sons</strong><small>Une note courte à chaque pose, plus haute quand le détour s’allonge.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-vibration"><span><strong>Vibration</strong><small>Une brève secousse confirme la pose, une autre signale le refus.</small></span></label>
+        <label class="option"><input type="checkbox" id="option-fantomes"><span><strong>Chemins fantômes</strong><small>Marque les cases où passe un autre chemin de même longueur.</small></span></label>
+
+        <p class="version" id="version">L’Architecte 1.0.0</p>
+        <div class="feuille-actions">
+            <button type="button" data-fermer>Fermer</button>
+            <button type="button" class="primaire" id="options-jouer">Nouvelle partie libre</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-stats">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende">Carnet de chantier</p><h2>Résultats</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <div class="series">
+            <div><span>Série en cours</span><strong id="stat-serie">0</strong></div>
+            <div><span>Meilleure série</span><strong id="stat-record-serie">0</strong></div>
+        </div>
+        <h3>Records par configuration</h3>
+        <p id="palmares-vide"><small>Aucun budget entièrement dépensé pour l’instant.</small></p>
+        <ul class="palmares" id="palmares"></ul>
+        <h3>Défis récents</h3>
+        <p id="historique-vide"><small>Aucun défi du jour terminé.</small></p>
+        <ol class="historique" id="historique"></ol>
+        <div class="feuille-actions">
+            <button type="button" class="danger" id="effacer-stats">Tout effacer</button>
+            <button type="button" class="primaire" data-fermer>Fermer</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="dialogue-fin">
+    <div class="feuille">
+        <div class="feuille-entete">
+            <div><p class="legende" id="fin-legende">Budget épuisé</p><h2 id="fin-titre">Le chantier est fini</h2></div>
+            <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+        </div>
+        <dl class="resultat">
+            <div><dt>Détour</dt><dd id="fin-detour">0</dd></div>
+            <div><dt>Meilleur</dt><dd id="fin-meilleur">—</dd></div>
+            <div><dt>Murs</dt><dd id="fin-murs">0</dd></div>
+        </dl>
+        <div class="verdict" id="fin-verdict"><strong id="fin-verdict-titre"></strong><small id="fin-verdict-detail"></small></div>
+        <div class="feuille-actions">
+            <button type="button" data-fermer>Continuer à jouer</button>
+            <button type="button" id="fin-partager">Partager</button>
+            <button type="button" class="primaire" id="fin-rejouer">Nouvelle</button>
+        </div>
+    </div>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

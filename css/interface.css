@@ -1,0 +1,550 @@
+/* Tout ce qui n'est pas le plateau.
+ *
+ * Deux familles typographiques, toutes deux presentes sur l'appareil — aucun
+ * octet ne quitte la machine du joueur, donc aucune police telechargee :
+ *
+ *   une serif editoriale pour les titres et les textes, qui donne au jeu son
+ *   air de notice plutot que de tableau de bord ;
+ *   une monospace tabulaire pour les chiffres et les etiquettes, parce que trois
+ *   nombres qui changent en permanence doivent garder leur largeur — un detour
+ *   qui passe de 9 a 10 ne doit pas faire bouger la mise en page. */
+
+:root {
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    --marge: clamp(.75rem, 3vw, 1.25rem);
+}
+
+* { box-sizing: border-box; touch-action: manipulation; }
+
+/* L'anneau de focus du navigateur est bleu : la seule couleur vive de l'ecran
+ * doit rester celle du trace. */
+:focus-visible { outline: 2px solid var(--ligne); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+html, body { height: 100%; }
+
+body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    padding:
+        env(safe-area-inset-top) env(safe-area-inset-right)
+        env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--marge);
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: var(--marge);
+    min-height: 100%;
+}
+
+/* --- Barre du haut ----------------------------------------------------- */
+
+.barre {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.titre { flex: 1; min-width: 0; }
+
+.titre h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+
+.titre p {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.icone {
+    appearance: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 .35rem;
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--texte);
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--ombre);
+}
+
+.icone:active { transform: translateY(1px); }
+.icone[aria-pressed="false"] { color: var(--texte-doux); opacity: .65; }
+
+/* --- Les trois chiffres ------------------------------------------------ */
+/*
+ * Ils sont visibles en permanence, jamais dans un menu : la longueur actuelle,
+ * les murs restants, le meilleur connu. C'est le tableau de bord du jeu entier. */
+
+.compteurs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--bord);
+    border: 1px solid var(--bord);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--ombre);
+}
+
+.compteur {
+    background: var(--surface);
+    padding: .5rem .35rem .55rem;
+    text-align: center;
+}
+
+.compteur span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.compteur strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: 1.7rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+}
+
+.compteur.principal strong { color: var(--ligne); }
+.compteur.vide strong { color: var(--texte-doux); }
+.compteur strong.change { animation: chiffre .4s ease; }
+
+@keyframes chiffre {
+    0% { transform: translateY(-.14em); opacity: .35; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+/* --- La mention des traces multiples ------------------------------------ */
+/*
+ * Sans elle, le joueur croit a un bug la premiere fois que le trace saute d'un
+ * cote a l'autre apres une pose sans rapport. Avec elle, il comprend qu'il
+ * regardait l'un des chemins possibles. */
+
+.mention {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    min-height: 1.4rem;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    color: var(--texte-doux);
+    text-align: center;
+}
+
+.mention b { color: var(--texte); font-weight: 600; }
+.mention.exploit { color: var(--accent); }
+
+/* --- Actions ------------------------------------------------------------ */
+
+.actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .5rem;
+}
+
+.action {
+    appearance: none;
+    min-height: 44px;
+    padding: .35rem .2rem;
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--texte);
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: var(--ombre);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .1rem;
+}
+
+.action span { font-size: 1rem; line-height: 1; }
+.action:disabled { opacity: .38; cursor: default; }
+.action:active:not(:disabled) { transform: translateY(1px); }
+
+.navigation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+    margin-top: auto;
+}
+
+.navigation button {
+    appearance: none;
+    min-height: 52px;
+    padding: .4rem .6rem;
+    border: 1px solid var(--bord);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--texte);
+    cursor: pointer;
+    text-align: left;
+    box-shadow: var(--ombre);
+    font-family: var(--serif);
+}
+
+.navigation button span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.navigation button strong { font-weight: 600; font-size: .95rem; }
+.navigation button[aria-current="true"] { border-color: var(--ligne); box-shadow: inset 0 0 0 1px var(--ligne); }
+
+/* --- Dialogues ---------------------------------------------------------- */
+
+dialog {
+    width: min(30rem, calc(100vw - 1.5rem));
+    max-height: 86vh;
+    padding: 0;
+    border: 1px solid var(--bord);
+    border-radius: 18px;
+    background: var(--surface);
+    color: var(--texte);
+    box-shadow: var(--ombre-carte);
+    overflow: auto;
+}
+
+dialog::backdrop { background: var(--voile); }
+
+.feuille { padding: 1.1rem 1.15rem 1.25rem; }
+
+.feuille-entete {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-bottom: .75rem;
+}
+
+.feuille-entete div { flex: 1; }
+
+.legende {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.feuille h2 { margin: .1rem 0 0; font-size: 1.35rem; font-weight: 600; }
+.feuille h3 {
+    margin: 1.1rem 0 .4rem;
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.feuille p { margin: .5rem 0; }
+.feuille small { color: var(--texte-doux); }
+
+.fermer {
+    appearance: none;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    background: var(--fond);
+    color: var(--texte);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.regles article {
+    display: flex;
+    gap: .7rem;
+    margin: .55rem 0;
+}
+
+.regles article b {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--ligne);
+    padding-top: .18rem;
+}
+
+.regles article p { margin: 0; }
+.regles article strong { display: block; }
+
+kbd {
+    font-family: var(--mono);
+    font-size: .78em;
+    padding: .05em .35em;
+    border: 1px solid var(--bord);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--fond);
+}
+
+.choix {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.choix button {
+    appearance: none;
+    min-height: 44px;
+    padding: 0 .8rem;
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--mono);
+    font-size: .72rem;
+    cursor: pointer;
+}
+
+.choix button[aria-pressed="true"] {
+    border-color: var(--ligne);
+    box-shadow: inset 0 0 0 1px var(--ligne);
+    color: var(--ligne);
+}
+
+.pastille-theme {
+    display: inline-block;
+    width: .7em;
+    height: .7em;
+    border-radius: 50%;
+    margin-right: .4em;
+    vertical-align: -.05em;
+    background: var(--apercu, var(--ligne));
+    box-shadow: 0 0 0 1px var(--bord);
+}
+
+.option {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+    min-height: 44px;
+    padding: .35rem 0;
+    cursor: pointer;
+}
+
+.option input { width: 1.15rem; height: 1.15rem; margin-top: .3rem; accent-color: var(--ligne); }
+.option strong { display: block; font-weight: 600; }
+.option small { display: block; line-height: 1.35; }
+
+.reglage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-height: 44px;
+}
+
+.reglage select {
+    height: 44px;
+    min-width: 8.5rem;
+    padding: 0 .6rem;
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--mono);
+    font-size: .82rem;
+}
+
+.version {
+    margin: 1.1rem 0 0;
+    font-family: var(--mono);
+    font-size: .66rem;
+    color: var(--texte-doux);
+    text-align: center;
+}
+
+.feuille-actions {
+    display: flex;
+    gap: .5rem;
+    margin-top: 1.1rem;
+}
+
+.feuille-actions button {
+    flex: 1;
+    min-height: 48px;
+    border-radius: 13px;
+    border: 1px solid var(--bord);
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.feuille-actions .primaire {
+    background: var(--ligne);
+    border-color: var(--ligne);
+    color: var(--surface);
+}
+
+.feuille-actions .danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+
+/* --- Fin de partie ------------------------------------------------------ */
+
+.resultat {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .5rem;
+    margin: .9rem 0 0;
+}
+
+.resultat div {
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    padding: .5rem .3rem;
+    text-align: center;
+    background: var(--fond);
+}
+
+.resultat dt {
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.resultat dd {
+    margin: .1rem 0 0;
+    font-family: var(--mono);
+    font-size: 1.35rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.verdict {
+    margin: .9rem 0 0;
+    padding: .7rem .8rem;
+    border-radius: 13px;
+    border: 1px solid var(--bord);
+    background: var(--fond);
+    text-align: center;
+}
+
+.verdict.battu { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.verdict strong { display: block; font-size: 1.05rem; }
+.verdict small { display: block; margin-top: .15rem; }
+
+.series {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+}
+
+.series div {
+    border: 1px solid var(--bord);
+    border-radius: 12px;
+    padding: .55rem;
+    text-align: center;
+    background: var(--fond);
+}
+
+.series span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .56rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+}
+
+.series strong { font-family: var(--mono); font-size: 1.5rem; }
+
+.palmares, .historique {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--mono);
+    font-size: .78rem;
+}
+
+.palmares li, .historique li {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .35rem 0;
+    border-bottom: 1px solid var(--bord);
+}
+
+.palmares li:last-child, .historique li:last-child { border-bottom: 0; }
+.historique b, .palmares b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.historique .marque { color: var(--accent); }
+
+.annonce {
+    /* La marge par defaut d'un paragraphe compte encore pour sa position
+     * statique : sans ce zero, cette annonce invisible ajoutait dix-huit
+     * pixels de defilement au bas de chaque ecran. */
+    margin: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* Ecran court : on resserre tout ce qui n'est pas le plateau, pour que le jeu
+ * entier tienne sans defilement. Les 44 px des cibles tactiles ne bougent
+ * pas — c'est justement la que les paliers compacts trahissent d'habitude. */
+@media (max-height: 700px) {
+    :root { --marge: .6rem; }
+    /* Le bandeau resserre rend sa place au plateau, plutot que de la laisser
+     * en blanc entre les actions et les modes. */
+    .plateau { width: min(100%, 32rem, max(70vw, 100vh - 18.5rem)); }
+    .page { gap: .55rem; }
+    .compteur { padding: .35rem .3rem .4rem; }
+    .compteur strong { font-size: 1.35rem; }
+    .mention { min-height: 1.1rem; font-size: .64rem; }
+    .action { min-height: 44px; }
+    .navigation button { min-height: 44px; }
+    .navigation button strong { font-size: .88rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .compteur strong.change { animation: none; }
+    .action:active, .icone:active { transform: none; }
+}

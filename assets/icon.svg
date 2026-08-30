@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="L’Architecte">
+    <rect width="512" height="512" fill="#f7f3ea"/>
+    <g stroke="#e6ddcb" stroke-width="3">
+        <path d="M128 0V512M256 0V512M384 0V512M0 128H512M0 256H512M0 384H512"/>
+    </g>
+    <rect x="96" y="96" width="64" height="64" rx="14" fill="#b9b2a6"/>
+    <rect x="352" y="352" width="64" height="64" rx="14" fill="#b9b2a6"/>
+    <rect x="224" y="256" width="64" height="64" rx="14" fill="#35322d"/>
+    <path d="M96 300 H176 Q192 300 192 284 V220 Q192 204 208 204 H304 Q320 204 320 220 V284 Q320 300 336 300 H416"
+          fill="none" stroke="#e2483d" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#fffdf8" stroke="#e2483d" stroke-width="10">
+        <circle cx="192" cy="204" r="14"/>
+        <circle cx="320" cy="204" r="14"/>
+    </g>
+    <circle cx="96" cy="300" r="28" fill="#e2483d"/>
+    <circle cx="96" cy="300" r="11" fill="#f7f3ea"/>
+    <circle cx="416" cy="300" r="28" fill="#e2483d"/>
+    <circle cx="416" cy="300" r="11" fill="#f7f3ea"/>
+    <circle cx="416" cy="300" r="42" fill="none" stroke="#e2483d" stroke-width="9"/>
+</svg>

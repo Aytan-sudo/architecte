@@ -1,0 +1,142 @@
+// Ce qui survit a la fermeture de l'onglet.
+//
+// localStorage uniquement, sous des cles prefixees « architecte. », chaque
+// valeur portant sa version de schema. Stockage absent, plein ou corrompu : le
+// jeu retombe sur ses defauts et une memoire de session prend le relais. Ne
+// jamais empecher de jouer parce qu'on n'a pas su ecrire une preference.
+
+const PREFIXE = 'architecte.';
+const SCHEMA = 1;
+
+const secours = new Map();
+
+function magasin() {
+    try {
+        const test = `${PREFIXE}test`;
+        globalThis.localStorage.setItem(test, '1');
+        globalThis.localStorage.removeItem(test);
+        return globalThis.localStorage;
+    } catch {
+        return null;
+    }
+}
+
+function lire(nom, defaut) {
+    const cle = PREFIXE + nom;
+    try {
+        const brut = magasin()?.getItem(cle) ?? secours.get(cle);
+        if (!brut) return { ...defaut };
+        const valeur = JSON.parse(brut);
+        return migrer(nom, valeur, defaut);
+    } catch {
+        return { ...defaut };
+    }
+}
+
+function ecrire(nom, valeur) {
+    const cle = PREFIXE + nom;
+    const brut = JSON.stringify({ ...valeur, schema: SCHEMA });
+    secours.set(cle, brut);
+    try {
+        magasin()?.setItem(cle, brut);
+    } catch { /* plein ou refuse : la memoire de session suffit a la partie */ }
+}
+
+// Les migrations s'appliquent par palier, selon le format d'origine. Il n'y a
+// qu'un schema aujourd'hui ; l'aiguillage existe pour que le premier
+// changement n'ait pas a inventer sa propre mecanique.
+function migrer(nom, valeur, defaut) {
+    if (typeof valeur !== 'object' || valeur === null) return { ...defaut };
+    let etat = valeur;
+    if ((etat.schema ?? 0) < 1) etat = { ...defaut, ...etat, schema: 1 };
+    return { ...defaut, ...etat };
+}
+
+// --- Preferences ----------------------------------------------------------
+
+const PREFERENCES = {
+    theme: 'carmin',
+    sons: true,
+    vibration: true,
+    tracesFantomes: true,
+    taille: 12,
+    murs: 12
+};
+
+export const lirePreferences = () => lire('preferences', PREFERENCES);
+export const ecrirePreferences = preferences => ecrire('preferences', preferences);
+
+// --- Partie en cours ------------------------------------------------------
+
+export const lirePartie = () => lire('partie', { partie: null });
+export const ecrirePartie = etat => ecrire('partie', etat);
+export const oublierPartie = () => ecrire('partie', { partie: null });
+
+// --- Records, par configuration -------------------------------------------
+//
+// Chaque combinaison mode x taille x budget a son palmares : un detour de 71 en
+// grand oeuvre n'a rien a voir avec un detour de 26 en esquisse, et les
+// melanger ne dirait rien.
+
+export const cleConfiguration = ({ mode, lignes, colonnes, murs }) =>
+    `${mode}:${lignes}x${colonnes}:${murs}`;
+
+export const lireRecords = () => lire('records', { records: {} });
+
+export function inscrireRecord(configuration, resultat) {
+    const etat = lireRecords();
+    const cle = cleConfiguration(configuration);
+    const ancien = etat.records[cle];
+    if (ancien && ancien.longueur >= resultat.longueur) return { cle, record: ancien, nouveau: false };
+    etat.records[cle] = resultat;
+    ecrire('records', etat);
+    return { cle, record: resultat, nouveau: true };
+}
+
+export const recordDe = configuration => lireRecords().records[cleConfiguration(configuration)] ?? null;
+
+// --- Series et historique du defi -----------------------------------------
+
+const STATS = { serie: 0, meilleureSerie: 0, dernierJour: null, historique: [], parties: 0 };
+
+export const lireStats = () => lire('stats', STATS);
+
+const veille = dateTexte => {
+    const [annee, mois, jour] = dateTexte.split('-').map(Number);
+    const date = new Date(annee, mois - 1, jour, 12);
+    date.setDate(date.getDate() - 1);
+    const deux = valeur => String(valeur).padStart(2, '0');
+    return `${date.getFullYear()}-${deux(date.getMonth() + 1)}-${deux(date.getDate())}`;
+};
+
+// Seul le defi acheve le jour meme compte pour la serie : un lien du jour
+// rouvert plus tard redonne la grille, hors serie.
+export function inscrireDefi({ date, aujourdhui, format, longueur, meilleurConnu, murs, exploit }) {
+    const etat = lireStats();
+    const dejaFait = etat.historique.some(entree => entree.date === date);
+
+    etat.historique = [
+        { date, format: format.id, longueur, meilleurConnu, murs, exploit },
+        ...etat.historique.filter(entree => entree.date !== date)
+    ].slice(0, 30);
+
+    if (date === aujourdhui && !dejaFait) {
+        etat.serie = etat.dernierJour === veille(date) ? etat.serie + 1 : 1;
+        etat.dernierJour = date;
+        etat.meilleureSerie = Math.max(etat.meilleureSerie, etat.serie);
+    }
+    etat.parties += 1;
+    ecrire('stats', etat);
+    return etat;
+}
+
+export function effacerStats() {
+    ecrire('stats', STATS);
+    ecrire('records', { records: {} });
+    return lireStats();
+}
+
+// La serie affichee tombe d'elle-meme si le joueur a saute un jour : elle n'est
+// juste que relue au bon moment.
+export const serieVivante = (stats, aujourdhui) =>
+    stats.dernierJour === aujourdhui || stats.dernierJour === veille(aujourdhui) ? stats.serie : 0;
