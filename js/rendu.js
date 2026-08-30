@@ -18,12 +18,16 @@ const element = (nom, attributs) => {
 
 export function creerRendu({ grille, svg }) {
     let plateau = null;
+    // Le plateau montre n'est pas toujours celui qu'on joue : pour afficher la
+    // solution de la machine, on dessine une autre grille de meme geometrie
+    // sans rien changer a la partie en cours.
+    let affiche = null;
     let cases = [];
     let derniereLongueur = null;
 
     const centre = i => ({
-        x: (i % plateau.colonnes) + 0.5,
-        y: Math.floor(i / plateau.colonnes) + 0.5
+        x: (i % affiche.colonnes) + 0.5,
+        y: Math.floor(i / affiche.colonnes) + 0.5
     });
 
     // Les points de rupture seulement : deux pas dans la meme direction ne
@@ -75,6 +79,7 @@ export function creerRendu({ grille, svg }) {
 
     function construire(nouveauPlateau) {
         plateau = nouveauPlateau;
+        affiche = nouveauPlateau;
         grille.style.setProperty('--colonnes', plateau.colonnes);
         svg.setAttribute('viewBox', `0 0 ${plateau.colonnes} ${plateau.lignes}`);
         grille.textContent = '';
@@ -97,8 +102,8 @@ export function creerRendu({ grille, svg }) {
     }
 
     function dessinerCases(etat) {
-        for (let i = 0; i < plateau.cases.length; i++) {
-            const valeur = plateau.cases[i];
+        for (let i = 0; i < affiche.cases.length; i++) {
+            const valeur = affiche.cases[i];
             const nom = valeur === 1 ? 'obstacle' : valeur === 2 ? 'mur' : 'libre';
             const bouton = cases[i];
             if (bouton.dataset.etat !== nom) bouton.dataset.etat = nom;
@@ -106,7 +111,7 @@ export function creerRendu({ grille, svg }) {
             const etiquette = role === 'entree' ? 'entrée' : role === 'sortie' ? 'sortie'
                 : nom === 'mur' ? 'mur posé' : nom === 'obstacle' ? 'béton' : 'libre';
             bouton.setAttribute('aria-label',
-                `ligne ${Math.floor(i / plateau.colonnes) + 1}, colonne ${(i % plateau.colonnes) + 1} : ${etiquette}`);
+                `ligne ${Math.floor(i / affiche.colonnes) + 1}, colonne ${(i % affiche.colonnes) + 1} : ${etiquette}`);
             bouton.setAttribute('aria-pressed', nom === 'mur' ? 'true' : 'false');
             // Le beton n'est pas desactive, il est seulement inconstructible :
             // un bouton disabled refuse le focus, et les fleches du clavier
@@ -156,8 +161,8 @@ export function creerRendu({ grille, svg }) {
             svg.append(pastille);
         });
 
-        const depart = centre(plateau.entree);
-        const arrivee = centre(plateau.sortie);
+        const depart = centre(affiche.entree);
+        const arrivee = centre(affiche.sortie);
         svg.append(element('circle', { class: 'bout', cx: depart.x, cy: depart.y, r: 0.3 }));
         svg.append(element('circle', { class: 'bout-creux', cx: depart.x, cy: depart.y, r: 0.13 }));
         svg.append(element('circle', { class: 'bout', cx: arrivee.x, cy: arrivee.y, r: 0.3 }));
@@ -170,7 +175,12 @@ export function creerRendu({ grille, svg }) {
     return {
         construire,
 
+        // `plateau` permet de montrer une autre grille que celle qu'on joue ;
+        // `vue` dit laquelle, pour que la feuille de style traite les murs de la
+        // machine autrement que les siens.
         dessiner(etat, options = {}) {
+            affiche = options.plateau ?? plateau;
+            grille.parentElement.dataset.vue = options.vue ?? 'joueur';
             dessinerCases(etat);
             dessinerTrace(etat, options);
         },

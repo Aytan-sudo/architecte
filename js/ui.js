@@ -7,7 +7,7 @@
 import { THEMES, themeDe } from './themes.js';
 import { FORMATS, dateHumaine } from './defi.js';
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 
 const $ = id => document.getElementById(id);
 
@@ -36,7 +36,8 @@ function poser(noeud, valeur) {
     noeud.classList.add('change');
 }
 
-export function majCompteurs(etat, { cherche = false } = {}) {
+export function majCompteurs(etat, { cherche = false, vue = 'joueur' } = {}) {
+    document.querySelector('.compteurs').dataset.vue = vue;
     poser($('valeur-detour'), etat.longueur < 0 ? '—' : etat.longueur);
     poser($('valeur-murs'), etat.mursRestants);
     poser($('valeur-meilleur'), etat.meilleurConnu ?? (cherche ? '…' : '—'));
@@ -75,10 +76,13 @@ export function majMention(etat, { depart, impasse = false }) {
     mention.textContent = morceaux.join(' · ');
 }
 
-export function majActions({ peutAnnuler, peutRefaire, murs }) {
+export function majActions({ peutAnnuler, peutRefaire, murs, solutionOfferte }) {
     $('action-annuler').disabled = !peutAnnuler;
     $('action-refaire').disabled = !peutRefaire;
     $('action-recommencer').disabled = murs === 0;
+    // La solution n'apparait qu'une fois le budget depense : avant, ce bouton
+    // ne serait pas une aide, ce serait la fin du jeu.
+    $('action-solution').hidden = !solutionOfferte;
 }
 
 export function majTitre({ mode, format, date, serie }) {
@@ -94,6 +98,31 @@ export function majTitre({ mode, format, date, serie }) {
 
 export function annoncer(texte) {
     $('annonce').textContent = texte;
+}
+
+// --- La solution de la machine --------------------------------------------
+
+export function majBandeau({ actif, longueur, murs }) {
+    const bandeau = $('bandeau-solution');
+    bandeau.hidden = !actif;
+    $('mention').hidden = actif;
+    if (!actif) return;
+    $('bandeau-detour').textContent = longueur;
+    $('bandeau-murs').textContent = murs;
+}
+
+// Le bouton dit ce qu'il fait pendant qu'il le fait : la machine refait sa
+// recherche pour de vrai, et cela peut demander deux ou trois secondes sur un
+// telephone. Un bouton muet passerait pour un bouton casse.
+export function majBoutonSolution({ occupe, affichee }) {
+    for (const id of ['action-solution', 'fin-solution']) {
+        const bouton = $(id);
+        bouton.setAttribute('aria-busy', occupe ? 'true' : 'false');
+        bouton.disabled = occupe;
+        const libelle = occupe ? 'Cherche…' : affichee ? 'Retour' : 'Solution';
+        if (id === 'action-solution') bouton.innerHTML = `<span aria-hidden="true">◆</span>${libelle}`;
+        else bouton.textContent = occupe ? 'La machine cherche…' : affichee ? 'Revenir à ma grille' : 'Voir la solution';
+    }
 }
 
 // --- Dialogues ------------------------------------------------------------
@@ -170,7 +199,7 @@ export function majSon(actif) {
 
 // --- Fin de partie --------------------------------------------------------
 
-export function ouvrirFin({ etat, format, record, mode }) {
+export function ouvrirFin({ etat, format, record, mode, solutionVue = false }) {
     $('fin-detour').textContent = etat.longueur;
     $('fin-meilleur').textContent = etat.meilleurConnu ?? '—';
     $('fin-murs').textContent = etat.budget;
@@ -199,6 +228,8 @@ export function ouvrirFin({ etat, format, record, mode }) {
     if (record?.nouveau) {
         $('fin-verdict-detail').textContent += ' — nouveau record pour cette configuration.';
     }
+    $('fin-note-solution').hidden = !solutionVue;
+    $('fin-solution').hidden = etat.meilleurConnu === null;
     $('fin-rejouer').textContent = mode === 'jour' ? 'Partie libre' : 'Nouvelle grille';
     ouvrir('dialogue-fin');
 }

@@ -17,6 +17,11 @@
 
 * { box-sizing: border-box; touch-action: manipulation; }
 
+/* L'attribut hidden ne pese rien face a un display pose par une regle : sans
+ * ceci, un element cache par le JavaScript reste a l'ecran, et c'est le genre
+ * de panne qui ne leve aucune erreur. */
+[hidden] { display: none !important; }
+
 /* L'anneau de focus du navigateur est bleu : la seule couleur vive de l'ecran
  * doit rester celle du trace. */
 :focus-visible { outline: 2px solid var(--ligne); outline-offset: 2px; }
@@ -547,4 +552,76 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
     .compteur strong.change { animation: none; }
     .action:active, .icone:active { transform: none; }
+}
+
+/* --- Le bandeau de la solution ------------------------------------------ */
+/*
+ * Il ne s'affiche qu'une fois le budget depense, et il occupe la place de la
+ * mention : deux lignes de commentaire au-dessus du plateau, ce serait une de
+ * trop sur un telephone. */
+
+.bandeau {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    /* Aucune marge verticale : c'est le bouton qui donne sa hauteur au
+     * bandeau, et ses 44 px suffisent. Dix pixels de plus et le bas de l'ecran
+     * se mettait a defiler. */
+    padding: 0 0 0 .7rem;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.bandeau p {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .04em;
+    color: var(--texte-doux);
+}
+
+.bandeau b { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.bandeau button {
+    appearance: none;
+    min-height: 44px;
+    padding: 0 .7rem;
+    border: 0;
+    border-left: 1px solid var(--accent);
+    border-radius: 0 11px 11px 0;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Cinq actions plutot que quatre quand la solution devient disponible : la
+ * rangee se repartit toute seule. */
+.actions { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+
+.compteurs[data-vue="machine"] .compteur.principal strong { color: var(--accent); }
+
+.action.solution[aria-busy="true"] { opacity: .55; }
+
+.note-solution { margin: .7rem 0 0; text-align: center; }
+
+.revoir {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin-top: .5rem;
+    border: 0;
+    background: none;
+    color: var(--texte-doux);
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    cursor: pointer;
 }

@@ -75,6 +75,37 @@ const accords = dates.slice(0, 40).filter(date => {
 });
 check('les empreintes du catalogue correspondent aux plateaux generes', accords.length === 40, `${accords.length}/40`);
 
+// La promesse sur laquelle repose le bouton « voir la solution » : le
+// catalogue ne transporte aucun placement, mais la recherche est refaisable a
+// l'identique. Meme graine, meme budget d'iterations, meme resultat — sur
+// n'importe quelle machine. Sans cela, le jeu montrerait une solution qui ne
+// correspondrait pas au chiffre affiche a cote.
+const { chercherMeilleur, REGLAGES_PROFONDS } = await import('../js/solveur.js');
+const { longueur, avecMurs } = await import('../js/chemin.js');
+const refaits = [];
+for (const date of ['2026-08-31', '2026-09-04', '2026-09-05', '2027-03-12']) {
+    const { plateau, budget } = plateauDuJour(date);
+    const trouve = chercherMeilleur(plateau, budget, { ...REGLAGES_PROFONDS, graine: graineDuJour(date) });
+    const annonce = livre.jours[date].meilleur;
+    refaits.push({
+        date,
+        annonce,
+        trouve: trouve.longueur,
+        murs: trouve.murs.length,
+        budget,
+        // La solution rendue doit vraiment valoir ce qu'elle annonce sur la
+        // grille : c'est elle qui sera dessinee a l'ecran.
+        verifiee: longueur(avecMurs(plateau, trouve.murs)) === trouve.longueur
+    });
+}
+check('le chiffre du catalogue se refait a l identique depuis la graine',
+    refaits.every(essai => essai.trouve === essai.annonce),
+    refaits.map(essai => `${essai.date}:${essai.trouve}/${essai.annonce}`).join(' '));
+check('la solution refaite depense tout le budget',
+    refaits.every(essai => essai.murs === essai.budget));
+check('la solution refaite vaut bien sa longueur sur la grille',
+    refaits.every(essai => essai.verifiee));
+
 // Le partage : le resultat, jamais la solution.
 const partage = texteDePartage({
     date: '2026-08-30',

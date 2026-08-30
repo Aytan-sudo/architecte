@@ -17,6 +17,8 @@ const lire = chemin => readFileSync(join(racine, chemin), 'utf8');
 
 const page = lire('index.html');
 const worker = lire('sw.js');
+const cablage = lire('js/app.js');
+const interface_ = lire('css/interface.css');
 const manifeste = JSON.parse(lire('manifest.webmanifest'));
 
 // Ce que la page charge vraiment : on suit les imports statiques depuis
@@ -99,6 +101,31 @@ for (const nom of ['ui.js', 'app.js']) {
 const inconnus = [...cherches].filter(id => !page.includes(`id="${id}"`));
 check(`les ${cherches.size} identifiants cherches existent dans la page`, inconnus.length === 0, inconnus.join(' '));
 
+// La solution de la machine.
+//
+// Elle n'est jamais livree : le catalogue ne porte que des nombres, et le fil
+// separe refait la recherche a la demande. Le bouton n'apparait qu'une fois le
+// budget depense — avant, ce ne serait pas une aide, ce serait la fin du jeu.
+check('le fil separe rend le placement, pas seulement la longueur',
+    lire('js/solveur-worker.js').includes('murs: trouve.murs'));
+check('le fil separe accepte le reglage profond, pour refaire la recherche du catalogue',
+    lire('js/solveur-worker.js').includes('REGLAGES_PROFONDS') && cablage.includes("'profonds'"));
+check('le bouton de solution part cache', page.includes('id="action-solution" hidden'));
+check('le bouton de solution ne s offre qu une fois le budget depense',
+    lire('js/ui.js').includes('$(\'action-solution\').hidden = !solutionOfferte')
+    && cablage.includes('solutionOfferte: etat.termine'));
+check('une partie jouee apres la solution n entre pas au palmares',
+    cablage.includes('session.solutionVue ? null : stockage.inscrireRecord'));
+
+// L'attribut hidden ne pese rien face a un display pose par une regle : le
+// bandeau de la solution, en display:flex, restait a l'ecran une fois cache.
+// Une panne muette, comme les aime ce projet.
+check('la feuille de style fait respecter l attribut hidden',
+    /\[hidden\] \{ display: none !important; \}/.test(interface_));
+const cachesAuDepart = [...page.matchAll(/id="([\w-]+)"[^>]*\shidden/g)].map(([, id]) => id);
+check(`les ${cachesAuDepart.length} elements caches au depart le restent`, cachesAuDepart.length >= 2,
+    cachesAuDepart.join(' '));
+
 // Mobile d'abord.
 check('la page fixe la langue', page.includes('lang="fr"'));
 check('la page tient compte des encoches', page.includes('viewport-fit=cover'));
@@ -113,7 +140,6 @@ check('le plateau declare son exemption de cible tactile avec sa raison',
     Boolean(exemption) && exemption[1].length > 30, exemption?.[1] ?? 'absente');
 
 // L'interface, elle, tient la regle : boutons, listes deroulantes, cases.
-const interface_ = lire('css/interface.css');
 const cibles = ['.icone', '.action', '.fermer', '.option', '.reglage'];
 const tenues = cibles.filter(nom => new RegExp(`\\${nom} \\{[^}]*min-height: 44px`, 's').test(interface_));
 check('les cibles tactiles de l interface font 44 px', tenues.length === cibles.length,
@@ -123,7 +149,6 @@ check('la liste deroulante a une hauteur ferme, comme WebKit l exige',
     /\.reglage select \{[^}]*height: 44px/s.test(interface_));
 
 // Le defi s'ouvre par la date, la partie libre par sa graine.
-const cablage = lire('js/app.js');
 check('le defi s ouvre par ?jour=', cablage.includes("parametres.get('jour')"));
 check('la partie libre s ouvre par ?seed=', cablage.includes("parametres.get('seed')"));
 check('le lien partage ne porte jamais la solution',

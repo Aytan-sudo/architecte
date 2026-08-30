@@ -46,7 +46,6 @@
 .case:focus-visible {
     outline: 2px solid var(--ligne);
     outline-offset: -3px;
-    z-index: 3;
 }
 
 /* Le beton : ce qui etait deja la. Une trame diagonale le distingue d'un mur du
@@ -166,3 +165,27 @@
     background: var(--ligne-fantome);
 }
 .case[data-role]::after { content: none; }
+
+/* La vue de la machine.
+ *
+ * Sa grille n'est pas la votre : ses murs et son trace prennent la couleur
+ * d'accent, celle qui ne sert nulle part ailleurs qu'aux exploits. Impossible
+ * de confondre les deux, meme d'un coup d'oeil, meme apres etre alle chercher
+ * un cafe. */
+.plateau[data-vue="machine"] {
+    box-shadow: inset 0 0 0 2px var(--accent), var(--ombre);
+}
+
+.plateau[data-vue="machine"] .case { cursor: default; }
+
+.plateau[data-vue="machine"] .case[data-etat="mur"]::after {
+    background: var(--accent);
+    box-shadow: inset 0 -.12em 0 var(--ombre-mur);
+}
+
+.plateau[data-vue="machine"] .trace .ruban,
+.plateau[data-vue="machine"] .trace .pastille,
+.plateau[data-vue="machine"] .trace .anneau { stroke: var(--accent); }
+
+.plateau[data-vue="machine"] .trace .bout { fill: var(--accent); }
+.plateau[data-vue="machine"] .case[data-role]::before { background: var(--accent); opacity: .25; }

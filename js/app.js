@@ -6,7 +6,7 @@
 
 import { creerPartie, REFUS_BUDGET, REFUS_COUPE } from './partie.js';
 import { genererPlateau } from './generateur.js';
-import { longueur } from './chemin.js';
+import { longueur, analyser, avecMurs } from './chemin.js';
 import { graineDepuisTexte } from './hasard.js';
 import {
     FORMATS, dateLocale, estUneDate, formatDuJour, graineDuJour,
@@ -15,7 +15,7 @@ import {
 import { creerRendu } from './rendu.js';
 import { brancherPlateau, brancherClavier, brancherFlechesGrille, interdireDoubleTap, vibrer } from './entree.js';
 import { appliquer, themeSuivant } from './themes.js';
-import { chercherMeilleurConnu, lireCatalogue } from './recherche.js';
+import { chercher, chercherMeilleurConnu, lireCatalogue } from './recherche.js';
 import * as son from './son.js';
 import * as stockage from './stockage.js';
 import * as ui from './ui.js';
@@ -35,10 +35,17 @@ const session = {
     graine: 0,
     format: FORMATS.chantier,
     partie: null,
+    plateauNu: null,
     depart: 0,
     finMontree: -1,
     jeton: 0,
-    cherche: false
+    cherche: false,
+    // La solution de la machine : refaite a la demande, gardee le temps de la
+    // grille, et jamais montree avant que le budget soit depense.
+    reglages: 'rapides',
+    solution: null,
+    solutionVue: false,
+    vue: 'joueur'
 };
 
 appliquer(preferences.theme);
@@ -46,15 +53,19 @@ appliquer(preferences.theme);
 // --- Mise a l'ecran -------------------------------------------------------
 
 function rafraichir({ anime = true } = {}) {
+    session.vue = 'joueur';
     const etat = session.partie.etat();
     rendu.dessiner(etat, { anime, fantomes: preferences.tracesFantomes });
     ui.majCompteurs(etat, { cherche: session.cherche });
+    ui.majBandeau({ actif: false });
     ui.majMention(etat, { depart: session.depart, impasse: session.partie.impasse() });
     ui.majActions({
         peutAnnuler: session.partie.peutAnnuler(),
         peutRefaire: session.partie.peutRefaire(),
-        murs: etat.mursPoses
+        murs: etat.mursPoses,
+        solutionOfferte: etat.termine && etat.meilleurConnu !== null
     });
+    ui.majBoutonSolution({ occupe: false, affichee: false });
     ui.majTitre({
         mode: session.mode,
         format: session.format,
@@ -89,6 +100,10 @@ const configurationCourante = () => ({
 // --- Le coup, et ce qu'il declenche ---------------------------------------
 
 function jouer(i) {
+    // Sur la grille de la machine, taper ne construit pas : cela ramene a la
+    // sienne. C'est le geste que tout le monde essaie en premier.
+    if (session.vue === 'machine') { rafraichir(); return; }
+
     const avant = session.partie.etat();
     const resultat = session.partie.basculer(i);
 
@@ -122,12 +137,15 @@ function jouer(i) {
 }
 
 function terminer(etat) {
-    const record = stockage.inscrireRecord(configurationCourante(), {
+    // Une partie jouee apres avoir vu la solution n'entre pas au palmares —
+    // meme regle que l'indice dans les autres jeux de la collection. Ce qui
+    // avait ete inscrit avant reste acquis.
+    const record = session.solutionVue ? null : stockage.inscrireRecord(configurationCourante(), {
         longueur: etat.longueur,
         date: dateLocale()
     });
 
-    if (session.mode === 'jour') {
+    if (session.mode === 'jour' && !session.solutionVue) {
         stockage.inscrireDefi({
             date: session.date,
             aujourdhui: dateLocale(),
@@ -150,7 +168,7 @@ function terminer(etat) {
     // budget epuise, puis quand le joueur fait mieux qu'a sa derniere lecture.
     if (etat.longueur > session.finMontree) {
         session.finMontree = etat.longueur;
-        ui.ouvrirFin({ etat, format: session.format, record, mode: session.mode });
+        ui.ouvrirFin({ etat, format: session.format, record, mode: session.mode, solutionVue: session.solutionVue });
     }
 }
 
@@ -194,6 +212,14 @@ async function demarrer(demande, { reprise = null } = {}) {
 
     session.depart = longueur(plateau);
     session.finMontree = -1;
+    session.plateauNu = plateau;
+    session.solution = null;
+    session.solutionVue = false;
+    session.vue = 'joueur';
+    // Le defi du jour affiche le chiffre du catalogue : pour retrouver le meme
+    // placement, il faudra refaire la meme recherche profonde. La partie libre,
+    // elle, affiche le resultat de la recherche courte deja faite ici.
+    session.reglages = demande.mode === 'jour' ? 'profonds' : 'rapides';
 
     // Le meilleur connu : le catalogue d'abord — il porte une recherche
     // profonde impossible a refaire ici — la recherche embarquee ensuite.
@@ -224,17 +250,66 @@ async function demarrer(demande, { reprise = null } = {}) {
     rafraichir({ anime: false });
 
     if (meilleurConnu === null) {
-        const trouve = await chercherMeilleurConnu({
-            lignes: session.format.lignes,
-            colonnes: session.format.colonnes,
-            murs: session.format.murs,
-            graine: session.graine
-        });
+        const trouve = await chercherMeilleurConnu(configurationDeRecherche());
         if (jeton !== session.jeton) return;
         session.cherche = false;
         if (trouve !== null) session.partie.fixerMeilleurConnu(trouve);
         rafraichir({ anime: false });
     }
+}
+
+const configurationDeRecherche = () => ({
+    lignes: session.format.lignes,
+    colonnes: session.format.colonnes,
+    murs: session.format.murs,
+    graine: session.graine,
+    reglages: session.reglages
+});
+
+// --- La solution de la machine --------------------------------------------
+//
+// Le catalogue ne transporte aucun placement : il serait public, et ce serait
+// un fichier de spoilers. La solution est donc refaite ici, avec la meme graine
+// et le meme budget d'iterations que celle qui a produit le chiffre affiche —
+// meme recherche, meme resultat. Le chiffre cesse d'etre affirme : il est
+// reproduit sous les yeux du joueur.
+async function montrerSolution() {
+    if (session.vue === 'machine') { rafraichir(); return; }
+
+    const etat = session.partie.etat();
+    if (!etat.termine || etat.meilleurConnu === null) return;
+
+    if (!session.solution) {
+        ui.majBoutonSolution({ occupe: true, affichee: false });
+        ui.annoncer('La machine refait sa recherche…');
+        const jeton = session.jeton;
+        const trouve = await chercher(configurationDeRecherche());
+        if (jeton !== session.jeton) return;                  // le joueur est passe a une autre grille
+        ui.majBoutonSolution({ occupe: false, affichee: false });
+        if (!trouve || !trouve.murs.length) {
+            ui.annoncer('La recherche n’a pas abouti.');
+            return;
+        }
+        session.solution = trouve;
+    }
+
+    session.solutionVue = true;
+    session.vue = 'machine';
+
+    const grilleMachine = avecMurs(session.plateauNu, session.solution.murs);
+    const analyse = analyser(grilleMachine);
+    rendu.dessiner(analyse, { plateau: grilleMachine, vue: 'machine', anime: true, fantomes: false });
+    ui.majCompteurs({
+        longueur: analyse.longueur,
+        mursRestants: 0,
+        meilleurConnu: etat.meilleurConnu
+    }, { vue: 'machine' });
+    ui.majBandeau({ actif: true, longueur: analyse.longueur, murs: session.solution.murs.length });
+    ui.majBoutonSolution({ occupe: false, affichee: true });
+    // Le focus quitte le plateau : sur la grille de la machine, aucune case
+    // n'est jouable, et le seul geste qui reste est le retour.
+    document.getElementById('solution-fermer').focus();
+    ui.annoncer(`Solution de la machine : détour ${analyse.longueur} avec ${session.solution.murs.length} murs.`);
 }
 
 const partieLibre = (options = {}) => demarrer({
@@ -341,6 +416,12 @@ bouton('action-annuler', () => { session.partie.annuler(); rafraichir(); });
 bouton('action-refaire', () => { session.partie.refaire(); rafraichir(); });
 bouton('action-recommencer', () => { session.partie.recommencer(); session.finMontree = -1; rafraichir(); });
 bouton('action-partager', partager);
+bouton('action-solution', montrerSolution);
+bouton('solution-fermer', () => rafraichir());
+bouton('fin-solution', () => {
+    document.getElementById('dialogue-fin').close();
+    montrerSolution();
+});
 
 bouton('nav-jour', () => demarrer({ mode: 'jour', date: dateLocale() }));
 bouton('nav-libre', () => partieLibre());

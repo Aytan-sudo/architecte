@@ -65,6 +65,11 @@
 
     <p class="mention" id="mention"></p>
 
+    <div class="bandeau" id="bandeau-solution" hidden>
+        <p>Solution · détour <b id="bandeau-detour">0</b> · <b id="bandeau-murs">0</b> murs</p>
+        <button type="button" id="solution-fermer">Ma grille</button>
+    </div>
+
     <main class="plateau" id="plateau" data-cible-libre="le plateau fait de dix a seize cases par rangee : a 44 px la case, la grille depasserait trois fois la largeur d un telephone">
         <div class="grille" id="grille" role="grid" aria-label="Plateau de construction"></div>
         <svg class="trace" id="trace" aria-hidden="true"></svg>
@@ -75,6 +80,7 @@
         <button type="button" class="action" id="action-refaire" disabled><span aria-hidden="true">↷</span>Refaire</button>
         <button type="button" class="action" id="action-recommencer"><span aria-hidden="true">⟲</span>Relancer</button>
         <button type="button" class="action" id="action-partager"><span aria-hidden="true">↑</span>Partager</button>
+        <button type="button" class="action solution" id="action-solution" hidden><span aria-hidden="true">◆</span>Solution</button>
     </div>
 
     <nav class="navigation" aria-label="Modes de jeu">
@@ -177,11 +183,13 @@
             <div><dt>Murs</dt><dd id="fin-murs">0</dd></div>
         </dl>
         <div class="verdict" id="fin-verdict"><strong id="fin-verdict-titre"></strong><small id="fin-verdict-detail"></small></div>
+        <p class="note-solution" id="fin-note-solution" hidden><small>Vous avez vu la solution de cette grille : elle n’entre plus au palmarès.</small></p>
         <div class="feuille-actions">
-            <button type="button" data-fermer>Continuer à jouer</button>
+            <button type="button" id="fin-solution">Voir la solution</button>
             <button type="button" id="fin-partager">Partager</button>
             <button type="button" class="primaire" id="fin-rejouer">Nouvelle</button>
         </div>
+        <button type="button" class="revoir" data-fermer>Revenir à ma grille</button>
     </div>
 </dialog>
 

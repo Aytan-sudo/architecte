@@ -10,6 +10,18 @@ construisez, et la machine qui résout après vous. À chaque mur, elle recalcul
 son chemin, le redessine, et vous montre exactement ce que votre pose lui a
 coûté. Le score est cette longueur.
 
+## Version 1.1.0
+
+- **voir la solution de la machine**, une fois le budget dépensé. Elle n'est pas
+  livrée avec le jeu : elle est **refaite** dans le navigateur, avec la même
+  graine et le même budget d'itérations que la recherche qui a produit le
+  chiffre affiché — donc exactement le même placement. Le catalogue continue de
+  ne transporter que des nombres ;
+- une partie jouée après avoir vu la solution n'entre plus au palmarès, comme
+  une partie jouée avec un indice dans les autres jeux ;
+- correction : un élément masqué par `hidden` restait à l'écran quand une règle
+  de style lui donnait un `display`. Panne muette, désormais tenue par un test.
+
 ## Version 1.0.0
 
 - première version : défi du jour, partie libre, cinq thèmes, records par
@@ -182,7 +194,7 @@ modules ES sont chargés par le navigateur — **ils ne fonctionnent pas en
 
 ```bash
 npm run serve     # http://localhost:8772
-npm test          # 209 vérifications, en Node, sans navigateur
+npm test          # 219 vérifications, en Node, sans navigateur
 npm run check     # node --check sur chaque module
 npm run catalogue # refabrique data/defis.json (quelques minutes)
 ```
