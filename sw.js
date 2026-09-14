@@ -58,7 +58,7 @@ self.addEventListener('install', evenement => {
 self.addEventListener('activate', evenement => {
     evenement.waitUntil(
         caches.keys()
-            .then(noms => Promise.all(noms.filter(nom => nom !== VERSION).map(nom => caches.delete(nom))))
+            .then(noms => Promise.all(noms.filter(nom => nom.startsWith('architecte-') && nom !== VERSION).map(nom => caches.delete(nom))))
             .then(() => self.clients.claim())
     );
 });
