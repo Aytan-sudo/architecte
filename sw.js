@@ -14,11 +14,14 @@
 // libre a besoin du solveur pour afficher son troisieme chiffre, et le defi du
 // jour a besoin du catalogue pour afficher le sien.
 
-const VERSION = 'architecte-1.2.0';
+const VERSION = 'architecte-1.3.0';
 
 const COQUILLE = [
     './',
     'index.html',
+    'commun/passeport.js',
+    'commun/liaison.js',
+    'commun/passeport.css',
     'manifest.webmanifest',
     'css/themes.css',
     'css/plateau.css',

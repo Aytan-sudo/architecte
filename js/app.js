@@ -124,6 +124,7 @@ function jouer(i) {
     }
 
     const etat = rafraichir();
+    if (resultat.action === 'pose') noterPasseport(etat);
 
     if (preferences.sons) {
         const degre = son.degreDe({
@@ -138,6 +139,14 @@ function jouer(i) {
 
     ui.annoncer(`Détour ${etat.longueur}, ${etat.mursRestants} murs restants.`);
     if (etat.termine && avant.mursRestants > 0) terminer(etat);
+}
+
+// Le tampon Logique du passeport : une grille terminee le donne tout de suite ;
+// sinon, le trentieme mur pose dans la journee. En mode invite, rien ne compte.
+function noterPasseport(etat) {
+    const joueur = globalThis.Passeport;
+    const murs = stockage.compterMurPasseport(joueur?.jourLocal());
+    if (murs !== null) joueur.noter('architecte', murs, etat.termine);
 }
 
 function terminer(etat) {

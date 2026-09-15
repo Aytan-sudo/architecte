@@ -560,7 +560,7 @@ kbd {
     :root { --marge: .6rem; }
     /* Le bandeau resserre rend sa place au plateau, plutot que de la laisser
      * en blanc entre les actions et les modes. */
-    .plateau { width: min(100%, 32rem, max(70vw, 100vh - 18.5rem)); }
+    .plateau { width: min(100%, 32rem, max(70vw, 100vh - 18.5rem - var(--hauteur-passeport))); }
     .page { gap: .55rem; }
     .compteur { padding: .35rem .3rem .4rem; }
     .compteur strong { font-size: 1.35rem; }

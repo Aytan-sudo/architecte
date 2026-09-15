@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="css/themes.css">
 <link rel="stylesheet" href="css/plateau.css">
 <link rel="stylesheet" href="css/interface.css">
+<link rel="stylesheet" href="commun/passeport.css">
+<script src="commun/passeport.js"></script>
+<script src="commun/liaison.js" defer></script>
 <script>
     // Le theme se pose avant le premier pixel.
     //
@@ -19,10 +22,12 @@
     // la page s'afficherait une fraction de seconde en carmin avant de virer au
     // theme choisi. Ces quelques lignes-la, et elles seules, ont le droit de
     // doubler la liste des themes — tests/test-themes.mjs compare les deux et
-    // refuse qu'elles divergent.
+    // refuse qu'elles divergent. Ouvert depuis le hub, le jeu lit les
+    // preferences rangees dans le passeport du joueur.
     try {
         const THEMES = { carmin: '#f7f3ea', menthe: '#f1f5f1', papier: '#fbf9f4', encre: '#171a21', prune: '#221a24' };
-        const preferences = JSON.parse(localStorage.getItem('architecte.preferences') || '{}');
+        const magasin = Passeport.stockageJeu('architecte') || localStorage;
+        const preferences = JSON.parse(magasin.getItem('architecte.preferences') || '{}');
         const couleur = THEMES[preferences.theme];
         if (couleur) {
             document.documentElement.dataset.theme = preferences.theme;
@@ -34,6 +39,7 @@
 <body>
 
 <div class="page">
+    <div class="passeport-ruban" data-passeport-ruban data-jeu="architecte" data-consigne="Tampon : une grille terminée ou 30 murs"></div>
 
     <header class="barre">
         <button type="button" class="icone titre" id="stats-ouvrir" aria-label="Résultats et séries" style="flex:1;text-align:left;justify-content:flex-start">

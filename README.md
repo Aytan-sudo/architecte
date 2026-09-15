@@ -10,6 +10,16 @@ construisez, et la machine qui résout après vous. À chaque mur, elle recalcul
 son chemin, le redessine, et vous montre exactement ce que votre pose lui a
 coûté. Le score est cette longueur.
 
+## Version 1.3.0 — Le passeport commun
+
+Ouvert depuis le hub avec un passeport, le jeu range préférences, partie en cours,
+records et série dans l’espace du joueur ; en mode invité, rien ne change. Une
+grille terminée (tous les murs posés) donne le tampon **Logique** tout de suite ;
+sinon, le trentième mur posé dans la journée le donne aussi. Le bandeau du
+passeport ramène au hub ; le plateau déduit sa hauteur de son budget pour que le
+jeu tienne toujours sans défilement sur téléphone. Les fichiers `commun/`
+viennent du hub et sont précachés.
+
 ## Version 1.2.0
 
 - **deux variantes**, qui se combinent : **Stations** (le chemin doit desservir

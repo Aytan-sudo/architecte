@@ -10,7 +10,12 @@ const SCHEMA = 1;
 
 const secours = new Map();
 
+// Ouvert depuis le hub avec un passeport, le jeu range tout dans l'espace du
+// joueur ; en mode invite, dans localStorage, comme avant.
+const passeport = globalThis.Passeport?.stockageJeu('architecte') ?? null;
+
 function magasin() {
+    if (passeport) return passeport;
     try {
         const test = `${PREFIXE}test`;
         globalThis.localStorage.setItem(test, '1');
@@ -131,6 +136,20 @@ export function inscrireDefi({ date, aujourdhui, format, longueur, meilleurConnu
     etat.parties += 1;
     ecrire('stats', etat);
     return etat;
+}
+
+// --- Passeport -------------------------------------------------------------
+//
+// Le tampon Logique du hub recompense une grille terminee, ou l'effort : trente
+// murs poses dans la journee, retraits et reprises compris. Renvoie le compte du
+// jour, ou null en mode invite, ou rien ne compte.
+export function compterMurPasseport(jour, coffre = passeport) {
+    if (!coffre) return null;
+    let compte = null;
+    try { compte = JSON.parse(coffre.getItem(`${PREFIXE}passeport`)); } catch { /* compteur illisible : on repart */ }
+    const murs = compte?.jour === jour && Number.isInteger(compte.murs) ? compte.murs + 1 : 1;
+    try { coffre.setItem(`${PREFIXE}passeport`, JSON.stringify({ jour, murs })); } catch { /* le passeport signale l'echec */ }
+    return murs;
 }
 
 export function effacerStats() {

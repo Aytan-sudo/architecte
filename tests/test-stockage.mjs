@@ -95,4 +95,15 @@ try {
 check('un stockage en panne ne leve pas d exception', survecu);
 check('la memoire de session prend le relais', stockage.lirePreferences().theme === 'menthe');
 
+// Le compteur de murs du tampon Logique : il vit dans l'espace du joueur,
+// repart a zero chaque jour, et ne tourne pas en mode invite.
+const coffrePasseport = new Map();
+const espacePasseport = { getItem: cle => coffrePasseport.get(cle) ?? null, setItem: (cle, valeur) => coffrePasseport.set(cle, String(valeur)) };
+check('passeport : en mode invite, rien n est compte', stockage.compterMurPasseport('2026-09-15') === null);
+for (let i = 0; i < 29; i++) stockage.compterMurPasseport('2026-09-15', espacePasseport);
+check('passeport : le trentieme mur du jour atteint trente', stockage.compterMurPasseport('2026-09-15', espacePasseport) === 30);
+check('passeport : le lendemain, on repart de un', stockage.compterMurPasseport('2026-09-16', espacePasseport) === 1);
+coffrePasseport.set('architecte.passeport', '{casse');
+check('passeport : un compteur illisible repart proprement', stockage.compterMurPasseport('2026-09-16', espacePasseport) === 1);
+
 report();
