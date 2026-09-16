@@ -10,6 +10,12 @@ construisez, et la machine qui résout après vous. À chaque mur, elle recalcul
 son chemin, le redessine, et vous montre exactement ce que votre pose lui a
 coûté. Le score est cette longueur.
 
+## Version 1.3.3 — Passeport 1.8.0
+
+Module commun du passeport 1.8.0 : **Maze for Adventurers** rejoint le thème
+Aventure, aux côtés de Snake. Toute la collection est désormais raccordée. Rien
+ne change dans le jeu.
+
 ## Version 1.3.2 — Passeport 1.7.0
 
 Module commun du passeport 1.7.0 : 2048 rejoint le thème Nombres, Snake ouvre le

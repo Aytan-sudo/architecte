@@ -1,6 +1,6 @@
 {
     "name": "architecte",
-    "version": "1.3.2",
+    "version": "1.3.3",
     "private": true,
     "description": "Le joueur construit le detour, la machine mesure. Jouable hors ligne.",
     "type": "module",

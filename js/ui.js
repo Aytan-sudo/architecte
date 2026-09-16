@@ -8,7 +8,7 @@ import { THEMES, themeDe } from './themes.js';
 import { FORMATS, dateHumaine } from './defi.js';
 import { VARIANTES, disponible, libelleVariantes } from './variantes.js';
 
-export const VERSION = '1.3.2';
+export const VERSION = '1.3.3';
 
 const $ = id => document.getElementById(id);
 
